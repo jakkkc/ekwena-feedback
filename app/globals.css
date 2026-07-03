@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-brown: #3E2723;
+  --color-brown-light: #5D4037;
+  --color-orange: #BF6B34;
+  --color-orange-light: #D68A52;
+  --color-beige: #F3E5D3;
+  --color-beige-light: #FAF3E9;
+  --color-cream: #FFFDF9;
+
+  --font-heading: 'Fraunces', serif;
+  --font-body: 'Manrope', sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brown: var(--color-brown);
+  --color-brown-light: var(--color-brown-light);
+  --color-orange: var(--color-orange);
+  --color-orange-light: var(--color-orange-light);
+  --color-beige: var(--color-beige);
+  --color-beige-light: var(--color-beige-light);
+  --color-cream: var(--color-cream);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-beige-light);
+  color: var(--color-brown);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
 }
