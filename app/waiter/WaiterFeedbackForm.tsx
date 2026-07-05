@@ -62,9 +62,12 @@ export function WaiterFeedbackForm({
   outletName: string
   collectedByName: string
 }) {
-  const TOTAL_STEPS = 4
+  const TOTAL_STEPS = 5
   const [phase, setPhase] = useState<'form' | 'thankyou'>('form')
   const [step, setStep] = useState(1)
+
+  const [billNumber, setBillNumber] = useState('')
+  const [checkingBill, setCheckingBill] = useState(false)
 
   const [hostess, setHostess] = useState(0)
   const [beverage, setBeverage] = useState(0)
@@ -90,6 +93,7 @@ export function WaiterFeedbackForm({
 
   function resetForm() {
     setStep(1)
+    setBillNumber('')
     setHostess(0); setBeverage(0); setFoodQuality(0); setMenuVariety(0)
     setService(0); setGeneralAmbiance(0); setAmbianceCleanliness(0)
     setNps(null); setHowHeard(''); setHowHeardOther('')
@@ -99,12 +103,41 @@ export function WaiterFeedbackForm({
     setPhase('form')
   }
 
-  function goNext() {
-    if (step === 1 && (foodQuality === 0 || service === 0 || generalAmbiance === 0)) {
+  async function goNext() {
+    if (step === 1) {
+      if (!/^\d+$/.test(billNumber)) {
+        setError('Please enter a valid bill number (numbers only)')
+        return
+      }
+      setCheckingBill(true)
+      setError('')
+      try {
+        const res = await fetch(`/api/feedback/check-bill?bill_number=${billNumber}`)
+        const data = await res.json()
+        setCheckingBill(false)
+        if (!res.ok) {
+          setError(data.error || 'Could not verify bill number')
+          return
+        }
+        if (!data.available) {
+          setError('This bill number has already been used. Please check the receipt.')
+          return
+        }
+      } catch {
+        setCheckingBill(false)
+        setError('Could not verify bill number. Check your connection and try again.')
+        return
+      }
+      setError('')
+      setStep(2)
+      return
+    }
+
+    if (step === 2 && (foodQuality === 0 || service === 0 || generalAmbiance === 0)) {
       setError('Please rate Food Quality, Quality of Service, and General Ambiance to continue')
       return
     }
-    if (step === 2 && !howHeard) {
+    if (step === 3 && !howHeard) {
       setError('Please let us know how you heard about us')
       return
     }
@@ -120,7 +153,7 @@ export function WaiterFeedbackForm({
   async function handleSubmit() {
     if (!howHeard) {
       setError('Please let us know how you heard about us')
-      setStep(2)
+      setStep(3)
       return
     }
     setSubmitting(true)
@@ -130,6 +163,7 @@ export function WaiterFeedbackForm({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        bill_number: billNumber,
         food_rating: foodQuality,
         service_rating: service,
         ambiance_rating: generalAmbiance,
@@ -152,6 +186,7 @@ export function WaiterFeedbackForm({
     if (!res.ok) {
       const data = await res.json()
       setError(data.error || 'Something went wrong. Please try again.')
+      if (res.status === 409) setStep(1)
       return
     }
 
@@ -210,6 +245,23 @@ export function WaiterFeedbackForm({
       <div className="w-full max-w-md flex flex-col gap-5 bg-cream rounded-3xl p-6 shadow-sm">
         {step === 1 && (
           <>
+            <p className="text-center text-brown font-heading text-lg">Bill Number</p>
+            <p className="text-center text-brown-light text-xs font-body -mt-3">
+              Enter the receipt/bill number for this table before starting
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 10234"
+              value={billNumber}
+              onChange={(e) => { setBillNumber(e.target.value.replace(/\D/g, '')); setError('') }}
+              className="w-full text-center text-2xl rounded-2xl border border-beige px-4 py-4 font-heading text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-orange tracking-widest"
+            />
+          </>
+        )}
+
+        {step === 2 && (
+          <>
             <p className="text-center text-brown font-heading text-lg">Hospitality & Quality</p>
             <StarRating label="Hostess Reception" optional value={hostess} onChange={setHostess} />
             <StarRating label="Beverage Quality" optional value={beverage} onChange={setBeverage} />
@@ -221,7 +273,7 @@ export function WaiterFeedbackForm({
           </>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <>
             <div className="flex flex-col items-center gap-3">
               <span className="font-body font-semibold text-brown text-center">
@@ -278,7 +330,7 @@ export function WaiterFeedbackForm({
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <>
             <p className="text-center text-brown font-heading text-lg">Who Served You?</p>
             <p className="text-center text-brown-light text-xs font-body -mt-3">Optional — helps us recognize great staff</p>
@@ -299,7 +351,7 @@ export function WaiterFeedbackForm({
           </>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <>
             <p className="text-center text-brown font-heading text-lg">Final Thoughts</p>
             <textarea
@@ -337,7 +389,7 @@ export function WaiterFeedbackForm({
           {step > 1 && (
             <button
               onClick={goBack}
-              disabled={submitting}
+              disabled={submitting || checkingBill}
               className="flex-1 bg-beige-light text-brown-light px-6 py-3 rounded-full font-body font-semibold hover:bg-beige transition disabled:opacity-50"
             >
               Back
@@ -346,9 +398,10 @@ export function WaiterFeedbackForm({
           {step < TOTAL_STEPS ? (
             <button
               onClick={goNext}
-              className="flex-1 bg-orange text-cream px-6 py-3 rounded-full font-body font-semibold hover:bg-orange-light transition"
+              disabled={checkingBill}
+              className="flex-1 bg-orange text-cream px-6 py-3 rounded-full font-body font-semibold hover:bg-orange-light transition disabled:opacity-50"
             >
-              Next
+              {checkingBill ? 'Checking...' : 'Next'}
             </button>
           ) : (
             <button

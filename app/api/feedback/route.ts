@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const {
+    bill_number,
     food_rating,
     service_rating,
     ambiance_rating,
@@ -32,6 +33,10 @@ export async function POST(req: NextRequest) {
     guest_name,
     guest_phone,
   } = body
+
+  if (!bill_number || !/^\d+$/.test(bill_number)) {
+    return NextResponse.json({ error: 'A valid bill number (numbers only) is required' }, { status: 400 })
+  }
 
   const coreValid = [food_rating, service_rating, ambiance_rating].every(
     (r) => Number.isInteger(r) && r >= 1 && r <= 5
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
   const { error } = await supabase.from('feedback').insert({
+    bill_number,
     branch: session.branch,
     outlet: session.outlet || null,
     collected_by: session.collectedBy || null,
@@ -77,6 +83,12 @@ export async function POST(req: NextRequest) {
   })
 
   if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { error: 'This bill number has already been used. Please check the receipt.' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
