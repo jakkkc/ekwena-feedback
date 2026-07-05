@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/session'
 
+const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
+
+function isValidOptionalRating(value: unknown, min: number, max: number) {
+  return value === undefined || value === null || (Number.isInteger(value) && value >= min && value <= max)
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSession()
 
@@ -10,22 +16,61 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { food_rating, service_rating, ambiance_rating, comment, guest_name, guest_phone } = body
+  const {
+    food_rating,
+    service_rating,
+    ambiance_rating,
+    hostess_rating,
+    cleanliness_rating,
+    value_rating,
+    wait_time_rating,
+    nps_score,
+    how_heard,
+    how_heard_other,
+    served_by,
+    comment,
+    guest_name,
+    guest_phone,
+  } = body
 
-  const ratingsValid = [food_rating, service_rating, ambiance_rating].every(
+  const coreValid = [food_rating, service_rating, ambiance_rating].every(
     (r) => Number.isInteger(r) && r >= 1 && r <= 5
   )
-  if (!ratingsValid) {
-    return NextResponse.json({ error: 'Ratings must be between 1 and 5' }, { status: 400 })
+  if (!coreValid) {
+    return NextResponse.json({ error: 'Food Quality, Quality of Service, and General Ambiance are required' }, { status: 400 })
+  }
+
+  if (
+    !isValidOptionalRating(hostess_rating, 1, 5) ||
+    !isValidOptionalRating(cleanliness_rating, 1, 5) ||
+    !isValidOptionalRating(value_rating, 1, 5) ||
+    !isValidOptionalRating(wait_time_rating, 1, 5) ||
+    !isValidOptionalRating(nps_score, 0, 10)
+  ) {
+    return NextResponse.json({ error: 'Optional ratings are out of range' }, { status: 400 })
+  }
+
+  if (!how_heard || !HOW_HEARD_OPTIONS.includes(how_heard)) {
+    return NextResponse.json({ error: 'Please select how you heard about us' }, { status: 400 })
   }
 
   const supabase = createServiceClient()
   const { error } = await supabase.from('feedback').insert({
     branch: session.branch,
+    outlet: session.outlet || null,
+    collected_by: session.collectedBy || null,
     submitted_by_staff_id: session.staffId,
     food_rating,
     service_rating,
     ambiance_rating,
+    hostess_rating: hostess_rating || null,
+    cleanliness_rating: cleanliness_rating || null,
+    value_rating: value_rating || null,
+    wait_time_rating: wait_time_rating || null,
+    nps_score: nps_score ?? null,
+    how_heard,
+    how_heard_other: how_heard === 'other' ? (how_heard_other || null) : null,
+    served_by: served_by || null,
     comment: comment || null,
     guest_name: guest_name || null,
     guest_phone: guest_phone || null,

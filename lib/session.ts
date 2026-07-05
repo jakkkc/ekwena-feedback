@@ -9,6 +9,8 @@ export type SessionPayload = {
   name: string
   role: 'manager' | 'waiter'
   branch: 'cottages' | 'tuuti' | null
+  outlet?: string | null
+  collectedBy?: string | null
 }
 
 export async function createSessionToken(payload: SessionPayload) {

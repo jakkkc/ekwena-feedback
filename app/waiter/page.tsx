@@ -6,9 +6,23 @@ const BRANCH_NAMES: Record<string, string> = {
   tuuti: 'Hunters Paradise Tuuti',
 }
 
+const OUTLET_NAMES: Record<string, string> = {
+  ekwena_restaurant: 'Ekwena Restaurant',
+  duma_bar: 'Duma Bar',
+  eswara_conference_hall: 'Eswara Conference Hall',
+  ekwena_gardens: 'Ekwena Gardens',
+}
+
 export default async function WaiterPage() {
   const session = await getSession()
   const branchName = session?.branch ? BRANCH_NAMES[session.branch] : ''
+  const outletName = session?.outlet ? OUTLET_NAMES[session.outlet] : ''
 
-  return <WaiterFeedbackForm staffName={session?.name || ''} branchName={branchName} />
+  return (
+    <WaiterFeedbackForm
+      branchName={branchName}
+      outletName={outletName}
+      collectedByName={session?.collectedBy || ''}
+    />
+  )
 }

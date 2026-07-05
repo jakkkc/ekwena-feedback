@@ -4,7 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createSessionToken, SESSION_COOKIE_NAME } from '@/lib/session'
 
 export async function POST(req: NextRequest) {
-  const { pin } = await req.json()
+  const { pin, outlet, collectedBy } = await req.json()
 
   if (!pin || typeof pin !== 'string') {
     return NextResponse.json({ error: 'PIN is required' }, { status: 400 })
@@ -30,11 +30,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 })
   }
 
+  // Waiters must pick an outlet + confirm who's collecting before we start a session
+  if (matched.role === 'waiter' && (!outlet || !collectedBy)) {
+    return NextResponse.json({ needsDetails: true, role: 'waiter' })
+  }
+
   const token = await createSessionToken({
     staffId: matched.id,
     name: matched.name,
     role: matched.role,
     branch: matched.branch,
+    outlet: matched.role === 'waiter' ? outlet : null,
+    collectedBy: matched.role === 'waiter' ? collectedBy : null,
   })
 
   const response = NextResponse.json({
