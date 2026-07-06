@@ -5,7 +5,8 @@ import { getSession } from '@/lib/session'
 const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
 
 function isValidOptionalRating(value: unknown, min: number, max: number) {
-  return value === undefined || value === null || (Number.isInteger(value) && value >= min && value <= max)
+  if (value === undefined || value === null) return true
+  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
 }
 
 export async function POST(req: NextRequest) {
