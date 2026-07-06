@@ -26,6 +26,9 @@ const OUTLET_NAMES: Record<string, string> = {
 }
 
 type Stats = {
+  grandAverageOverall: { avg: number; count: number }
+  grandAverageByBranch: { branch: string; avg: number; count: number }[]
+  grandAverageByOutlet: { outlet: string; avg: number; count: number }[]
   totalCount: number
   avgOverall: number
   avgHostess: number
@@ -257,6 +260,44 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} />
               <StatCard icon={<ThumbsUp size={20} />} label={`NPS (${stats.nps.responses} resp.)`} value={stats.nps.score ?? '—'} />
               <StatCard icon={<Users2 size={20} />} label="Repeat Guests" value={stats.repeatGuestCount} />
+            </div>
+
+            <div className="bg-brown rounded-2xl p-5 md:p-6 shadow-sm text-cream">
+              <h2 className="font-heading text-lg mb-1">All-Time Overall Experience</h2>
+              <p className="text-xs text-beige-light/80 font-body mb-4">
+                Combines all 7 rating categories, across every submission ever received. Not affected by the filters above.
+              </p>
+              <div className="flex items-end gap-3 mb-5">
+                <span className="text-5xl font-heading">{stats.grandAverageOverall.avg || '-'}</span>
+                <span className="text-sm text-beige-light/80 font-body mb-1">/ 5 - {stats.grandAverageOverall.count} reviews</span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-beige-light/80 font-body mb-2">By Branch</p>
+                  <div className="flex flex-col gap-1">
+                    {stats.grandAverageByBranch.map((b) => (
+                      <div key={b.branch} className="flex justify-between text-sm font-body">
+                        <span>{BRANCH_NAMES[b.branch] || b.branch}</span>
+                        <span className="font-semibold">{b.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({b.count})</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-beige-light/80 font-body mb-2">By Outlet</p>
+                  <div className="flex flex-col gap-1">
+                    {stats.grandAverageByOutlet.length === 0 && (
+                      <span className="text-sm font-body text-beige-light/70">No outlet data yet.</span>
+                    )}
+                    {stats.grandAverageByOutlet.map((o) => (
+                      <div key={o.outlet} className="flex justify-between text-sm font-body">
+                        <span>{OUTLET_NAMES[o.outlet] || o.outlet}</span>
+                        <span className="font-semibold">{o.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({o.count})</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

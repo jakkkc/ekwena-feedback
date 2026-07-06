@@ -33,6 +33,15 @@ function overallOf(f: FeedbackRow) {
   return (f.food_rating + f.service_rating + f.ambiance_rating) / 3
 }
 
+function allCategoriesOverallOf(f: FeedbackRow) {
+  const values: number[] = [f.food_rating, f.service_rating, f.ambiance_rating]
+  if (f.hostess_rating != null) values.push(f.hostess_rating)
+  if (f.cleanliness_rating != null) values.push(f.cleanliness_rating)
+  if (f.value_rating != null) values.push(f.value_rating)
+  if (f.wait_time_rating != null) values.push(f.wait_time_rating)
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
 function normalizeContact(value: string) {
   return value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
 }
@@ -264,7 +273,24 @@ export async function GET(req: NextRequest) {
   }))
   const repeatGuestCount = Object.values(contactCounts).filter((c) => c > 1).length
 
+  // --- All-time grand average across ALL 7 rating categories, ignoring every filter ---
+  const grandAverageOverall = {
+    avg: average(all.map(allCategoriesOverallOf)),
+    count: all.length,
+  }
+  const grandAverageByBranch = (['cottages', 'tuuti'] as const).map((branch) => {
+    const rows = all.filter((f) => f.branch === branch)
+    return { branch, avg: average(rows.map(allCategoriesOverallOf)), count: rows.length }
+  })
+  const grandAverageByOutlet = OUTLETS.map((outlet) => {
+    const rows = all.filter((f) => f.outlet === outlet)
+    return { outlet, avg: average(rows.map(allCategoriesOverallOf)), count: rows.length }
+  }).filter((o) => o.count > 0)
+
   return NextResponse.json({
+    grandAverageOverall,
+    grandAverageByBranch,
+    grandAverageByOutlet,
     totalCount,
     avgOverall,
     avgHostess,
