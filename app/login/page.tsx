@@ -91,20 +91,20 @@ export default function LoginPage() {
 
   if (phase === 'details') {
     return (
-      <main className="min-h-screen bg-beige-light flex flex-col items-center justify-center gap-8 p-8">
-        <Logo size={120} />
+      <main className="min-h-dvh bg-beige-light flex flex-col items-center justify-center gap-6 p-4">
+        <Logo size={90} />
         <div className="text-center">
-          <h1 className="text-2xl font-heading text-brown mb-1">One More Thing</h1>
+          <h1 className="text-xl font-heading text-brown mb-1">One More Thing</h1>
           <p className="text-brown-light text-sm">Set up this device for your shift</p>
         </div>
 
-        <div className="w-full max-w-xs flex flex-col gap-4">
+        <div className="w-full max-w-xs flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-brown-light font-body">Which outlet is this?</label>
             <select
               value={outlet}
               onChange={(e) => setOutlet(e.target.value)}
-              className="w-full rounded-full border border-beige px-4 py-3 font-body text-brown bg-cream focus:outline-none focus:border-orange"
+              className="w-full rounded-full border border-beige px-4 py-3 text-base font-body text-brown bg-cream focus:outline-none focus:border-orange"
             >
               <option value="">Select outlet</option>
               {OUTLET_OPTIONS.map((o) => (
@@ -118,7 +118,7 @@ export default function LoginPage() {
             <select
               value={collectedBy}
               onChange={(e) => setCollectedBy(e.target.value)}
-              className="w-full rounded-full border border-beige px-4 py-3 font-body text-brown bg-cream focus:outline-none focus:border-orange"
+              className="w-full rounded-full border border-beige px-4 py-3 text-base font-body text-brown bg-cream focus:outline-none focus:border-orange"
             >
               <option value="">Select your name</option>
               {roster.map((group) => (
@@ -152,34 +152,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-beige-light flex flex-col items-center justify-center gap-8 p-8">
-      <Logo size={140} />
+    <main className="h-dvh bg-beige-light flex flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
+      <Logo size={84} />
 
       <div className="text-center">
-        <h1 className="text-2xl font-heading text-brown mb-1">Staff Login</h1>
-        <p className="text-brown-light text-sm">Enter your PIN</p>
+        <h1 className="text-xl font-heading text-brown mb-0.5">Staff Login</h1>
+        <p className="text-brown-light text-xs">Enter your PIN</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-2.5">
         {Array.from({ length: Math.max(pin.length, 4) }).map((_, i) => (
           <div
             key={i}
-            className={`w-4 h-4 rounded-full border-2 border-orange ${
+            className={`w-3.5 h-3.5 rounded-full border-2 border-orange ${
               i < pin.length ? 'bg-orange' : 'bg-transparent'
             }`}
           />
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
 
-      <div className="grid grid-cols-3 gap-4 w-full max-w-xs">
+      <div className="grid grid-cols-3 gap-2.5 w-full max-w-[15rem]">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
           <button
             key={digit}
             onClick={() => handleDigit(digit)}
             disabled={loading}
-            className="aspect-square rounded-full bg-cream border-2 border-beige text-brown text-2xl font-heading hover:bg-beige transition disabled:opacity-50"
+            className="aspect-square rounded-full bg-cream border-2 border-beige text-brown text-xl font-heading hover:bg-beige active:bg-beige transition disabled:opacity-50"
           >
             {digit}
           </button>
@@ -187,21 +187,21 @@ export default function LoginPage() {
         <button
           onClick={handleClear}
           disabled={loading}
-          className="aspect-square rounded-full text-brown-light text-sm font-body hover:bg-beige transition disabled:opacity-50"
+          className="aspect-square rounded-full text-brown-light text-xs font-body hover:bg-beige active:bg-beige transition disabled:opacity-50"
         >
           Clear
         </button>
         <button
           onClick={() => handleDigit('0')}
           disabled={loading}
-          className="aspect-square rounded-full bg-cream border-2 border-beige text-brown text-2xl font-heading hover:bg-beige transition disabled:opacity-50"
+          className="aspect-square rounded-full bg-cream border-2 border-beige text-brown text-xl font-heading hover:bg-beige active:bg-beige transition disabled:opacity-50"
         >
           0
         </button>
         <button
           onClick={handleBackspace}
           disabled={loading}
-          className="aspect-square rounded-full text-brown-light text-sm font-body hover:bg-beige transition disabled:opacity-50"
+          className="aspect-square rounded-full text-brown-light text-xs font-body hover:bg-beige active:bg-beige transition disabled:opacity-50"
         >
           ⌫
         </button>
@@ -210,7 +210,7 @@ export default function LoginPage() {
       <button
         onClick={handlePinSubmit}
         disabled={loading || pin.length < 4}
-        className="bg-orange text-cream px-10 py-3 rounded-full font-body font-semibold hover:bg-orange-light transition disabled:opacity-40 disabled:cursor-not-allowed"
+        className="bg-orange text-cream px-8 py-2.5 rounded-full font-body font-semibold text-sm hover:bg-orange-light transition disabled:opacity-40 disabled:cursor-not-allowed mt-1"
       >
         {loading ? 'Checking...' : 'Log In'}
       </button>
