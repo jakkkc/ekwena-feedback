@@ -11,6 +11,7 @@ import {
   Compass, Award, AlertTriangle, Download, Activity,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
+import { RosterManager } from './RosterManager'
 
 const BRANCH_NAMES: Record<string, string> = {
   cottages: 'Cottages',
@@ -521,6 +522,8 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
             </div>
           </>
         )}
+
+        <RosterManager />
 
         <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
           <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/Logo'
 
@@ -11,14 +11,7 @@ const OUTLET_OPTIONS = [
   { value: 'ekwena_gardens', label: 'Ekwena Gardens' },
 ]
 
-const STAFF_OPTIONS: { group: string; names: string[] }[] = [
-  { group: 'Manager', names: ['Raphael Kutwa'] },
-  { group: 'Supervisor', names: ['Etole Ayuma'] },
-  { group: 'Hostess', names: ['Dolphine Ambetsa'] },
-  { group: 'Bartender', names: ['Bernard Atsango', 'Jonathan Mukui', 'Lawrence Biryah', 'Samuel Otieno'] },
-  { group: 'Waiters', names: ['Geoffrey Opude', 'Fred Khisa', 'Rodrick Wamalwa'] },
-  { group: 'Waitress', names: ['Benta Adhiambo', 'Rose Inganji', 'Jecinter Owino', 'Mercy Khalayi', 'Bephine Nyongesa'] },
-]
+type RosterGroup = { group: string; names: string[] }
 
 export default function LoginPage() {
   const [phase, setPhase] = useState<'pin' | 'details'>('pin')
@@ -27,7 +20,15 @@ export default function LoginPage() {
   const [collectedBy, setCollectedBy] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [roster, setRoster] = useState<RosterGroup[]>([])
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/roster')
+      .then((res) => res.json())
+      .then((data) => setRoster(data.roster || []))
+      .catch(() => setRoster([]))
+  }, [])
 
   function handleDigit(digit: string) {
     if (pin.length >= 6) return
@@ -120,7 +121,7 @@ export default function LoginPage() {
               className="w-full rounded-full border border-beige px-4 py-3 font-body text-brown bg-cream focus:outline-none focus:border-orange"
             >
               <option value="">Select your name</option>
-              {STAFF_OPTIONS.map((group) => (
+              {roster.map((group) => (
                 <optgroup key={group.group} label={group.group}>
                   {group.names.map((name) => (
                     <option key={name} value={name}>{name}</option>

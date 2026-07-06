@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
@@ -44,14 +44,7 @@ const HOW_HEARD_OPTIONS: { value: string; label: string }[] = [
   { value: 'other', label: 'Other' },
 ]
 
-const STAFF_OPTIONS: { group: string; names: string[] }[] = [
-  { group: 'Manager', names: ['Raphael Kutwa'] },
-  { group: 'Supervisor', names: ['Etole Ayuma'] },
-  { group: 'Hostess', names: ['Dolphine Ambetsa'] },
-  { group: 'Bartender', names: ['Bernard Atsango', 'Jonathan Mukui', 'Lawrence Biryah', 'Samuel Otieno'] },
-  { group: 'Waiters', names: ['Geoffrey Opude', 'Fred Khisa', 'Rodrick Wamalwa'] },
-  { group: 'Waitress', names: ['Benta Adhiambo', 'Rose Inganji', 'Jecinter Owino', 'Mercy Khalayi', 'Bephine Nyongesa'] },
-]
+type RosterGroup = { group: string; names: string[] }
 
 export function WaiterFeedbackForm({
   branchName,
@@ -65,6 +58,7 @@ export function WaiterFeedbackForm({
   const TOTAL_STEPS = 5
   const [phase, setPhase] = useState<'form' | 'thankyou'>('form')
   const [step, setStep] = useState(1)
+  const [roster, setRoster] = useState<RosterGroup[]>([])
 
   const [billNumber, setBillNumber] = useState('')
   const [checkingBill, setCheckingBill] = useState(false)
@@ -90,6 +84,13 @@ export function WaiterFeedbackForm({
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/roster')
+      .then((res) => res.json())
+      .then((data) => setRoster(data.roster || []))
+      .catch(() => setRoster([]))
+  }, [])
 
   function resetForm() {
     setStep(1)
@@ -340,7 +341,7 @@ export function WaiterFeedbackForm({
               className="w-full rounded-full border border-beige px-4 py-3 font-body text-brown bg-cream focus:outline-none focus:border-orange"
             >
               <option value="">Not sure / prefer not to say</option>
-              {STAFF_OPTIONS.map((group) => (
+              {roster.map((group) => (
                 <optgroup key={group.group} label={group.group}>
                   {group.names.map((name) => (
                     <option key={name} value={name}>{name}</option>
