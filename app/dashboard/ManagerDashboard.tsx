@@ -52,7 +52,9 @@ type Stats = {
   collectionVolume: { name: string; count: number }[]
   needsAttention: {
     id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
-    ambianceRating: number; npsScore: number | null; comment: string | null; servedBy: string | null
+    ambianceRating: number; hostessRating: number | null; cleanlinessRating: number | null
+    valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
+    comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
   }[]
   guestList: { name: string | null; phone: string | null; branch: string; outlet: string | null; createdAt: string; isRepeat: boolean }[]
@@ -470,7 +472,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 <p className="text-brown-light text-sm font-body">Nothing flagged — great work!</p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {stats.needsAttention.map((n) => (
+                  {stats.needsAttention.map((n) => {
+                    const optionalRatings: { label: string; value: number | null }[] = [
+                      { label: 'Hostess', value: n.hostessRating },
+                      { label: 'Beverage', value: n.waitTimeRating },
+                      { label: 'Menu Variety', value: n.valueRating },
+                      { label: 'Ambiance & Cleanliness', value: n.cleanlinessRating },
+                    ].filter((r) => r.value != null)
+                    return (
                     <div key={n.id} className="border border-orange/40 bg-orange/5 rounded-xl p-3">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-semibold text-orange font-body">
@@ -480,20 +489,32 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                           {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
-                      <div className="flex gap-3 text-xs text-brown-light font-body mb-1">
-                        <span>Food {n.foodRating}★</span>
-                        <span>Service {n.serviceRating}★</span>
-                        <span>Ambiance {n.ambianceRating}★</span>
-                        {n.npsScore != null && <span>NPS {n.npsScore}</span>}
+                      <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
+                        <span className={n.foodRating <= 2 ? 'text-red-700 font-semibold' : ''}>Food {n.foodRating}★</span>
+                        <span className={n.serviceRating <= 2 ? 'text-red-700 font-semibold' : ''}>Service {n.serviceRating}★</span>
+                        <span className={n.ambianceRating <= 2 ? 'text-red-700 font-semibold' : ''}>Ambiance {n.ambianceRating}★</span>
+                        {n.npsScore != null && (
+                          <span className={n.npsScore <= 6 ? 'text-red-700 font-semibold' : ''}>NPS {n.npsScore}</span>
+                        )}
                       </div>
+                      {optionalRatings.length > 0 && (
+                        <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
+                          {optionalRatings.map((r) => (
+                            <span key={r.label} className={(r.value as number) <= 2 ? 'text-red-700 font-semibold' : ''}>
+                              {r.label} {r.value}★
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {n.comment && <p className="text-brown font-body text-sm mb-1">{n.comment}</p>}
-                      <div className="flex gap-3 text-xs text-brown-light font-body">
+                      <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body">
                         {n.servedBy && <span>Served by {n.servedBy}</span>}
                         {n.guestName && <span>— {n.guestName}</span>}
                         {n.guestPhone && <span>{n.guestPhone}</span>}
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
