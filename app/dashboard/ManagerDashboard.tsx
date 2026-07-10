@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend,
+  LineChart, Line, Legend, PieChart, Pie, Cell,
 } from 'recharts'
 import {
   Star, MessageSquare, Users2, TrendingUp, LogOut, KeyRound, ThumbsUp,
-  Compass, Award, AlertTriangle, Download, Activity,
+  Compass, Award, AlertTriangle, Download, Activity, Smile,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
@@ -23,6 +23,14 @@ const OUTLET_NAMES: Record<string, string> = {
   duma_bar: 'Duma Bar',
   eswara_conference_hall: 'Eswara Conference Hall',
   ekwena_gardens: 'Ekwena Gardens',
+}
+
+function npsLabel(score: number | null): string {
+  if (score == null) return ''
+  if (score >= 70) return 'Excellent'
+  if (score >= 30) return 'Great'
+  if (score >= 0) return 'Good'
+  return 'Needs Improvement'
 }
 
 type Stats = {
@@ -46,6 +54,8 @@ type Stats = {
     id: string; branch: string; outlet: string | null; guestName: string | null; comment: string
     foodRating: number; serviceRating: number; ambianceRating: number; servedBy: string | null; createdAt: string
   }[]
+  csat: { percent: number | null; satisfiedCount: number; totalRatings: number }
+  npsTrend: { date: string; score: number | null; responses: number }[]
   nps: { score: number | null; promoters: number; passives: number; detractors: number; responses: number }
   howHeard: { label: string; count: number }[]
   staffLeaderboard: { name: string; avgOverall: number; count: number }[]
@@ -165,6 +175,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
     label: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   }))
 
+  const npsTrendFormatted = stats?.npsTrend.map((t) => ({
+    ...t,
+    label: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  }))
+
   const branchComparisonFormatted = stats?.branchComparison.map((b) => ({
     ...b,
     label: BRANCH_NAMES[b.branch] || b.branch,
@@ -257,10 +272,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
           <p className="text-brown-light font-body">Loading stats...</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <StatCard icon={<MessageSquare size={20} />} label="Total Feedback" value={stats.totalCount} />
               <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} />
               <StatCard icon={<ThumbsUp size={20} />} label={`NPS (${stats.nps.responses} resp.)`} value={stats.nps.score ?? '—'} />
+              <StatCard icon={<Smile size={20} />} label={`CSAT (${stats.csat.totalRatings} ratings)`} value={stats.csat.percent != null ? `${stats.csat.percent}%` : '—'} />
               <StatCard icon={<Users2 size={20} />} label="Repeat Guests" value={stats.repeatGuestCount} />
             </div>
 
@@ -385,6 +401,24 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </ResponsiveContainer>
             </div>
 
+            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+              <h2 className="font-heading text-lg text-brown mb-1 flex items-center gap-2">
+                <ThumbsUp size={18} /> NPS Trend
+              </h2>
+              <p className="text-xs text-brown-light font-body mb-4">
+                {stats.nps.score != null ? `Currently ${npsLabel(stats.nps.score).toLowerCase()} (${stats.nps.score})` : 'Not enough NPS responses yet'}
+              </p>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={npsTrendFormatted}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F3E5D3" />
+                  <XAxis dataKey="label" stroke="#5D4037" fontSize={11} />
+                  <YAxis domain={[-100, 100]} stroke="#5D4037" fontSize={12} />
+                  <Tooltip contentStyle={{ fontFamily: 'var(--font-body)', borderRadius: 12 }} />
+                  <Line type="monotone" dataKey="score" name="NPS" stroke="#3E2723" strokeWidth={3} dot={{ fill: '#3E2723', r: 3 }} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
                 <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
@@ -393,10 +427,38 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 {stats.nps.responses === 0 ? (
                   <p className="text-brown-light text-sm font-body">No NPS responses yet.</p>
                 ) : (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex justify-between text-sm font-body"><span className="text-brown">Promoters (9–10)</span><span className="text-brown-light">{stats.nps.promoters}</span></div>
-                    <div className="flex justify-between text-sm font-body"><span className="text-brown">Passives (7–8)</span><span className="text-brown-light">{stats.nps.passives}</span></div>
-                    <div className="flex justify-between text-sm font-body"><span className="text-brown">Detractors (0–6)</span><span className="text-brown-light">{stats.nps.detractors}</span></div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="w-32 h-32 shrink-0 relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Promoters', value: stats.nps.promoters },
+                              { name: 'Passives', value: stats.nps.passives },
+                              { name: 'Detractors', value: stats.nps.detractors },
+                            ]}
+                            dataKey="value"
+                            innerRadius={38}
+                            outerRadius={58}
+                            startAngle={90}
+                            endAngle={-270}
+                          >
+                            <Cell fill="#BF6B34" />
+                            <Cell fill="#D68A52" />
+                            <Cell fill="#3E2723" />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-2xl font-heading text-brown">{stats.nps.score ?? '—'}</span>
+                        <span className="text-[10px] text-brown-light font-body">{npsLabel(stats.nps.score)}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-1 w-full">
+                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#BF6B34' }} />Promoters (9–10)</span><span className="text-brown-light">{stats.nps.promoters}</span></div>
+                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#D68A52' }} />Passives (7–8)</span><span className="text-brown-light">{stats.nps.passives}</span></div>
+                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#3E2723' }} />Detractors (0–6)</span><span className="text-brown-light">{stats.nps.detractors}</span></div>
+                    </div>
                   </div>
                 )}
               </div>

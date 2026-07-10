@@ -186,6 +186,31 @@ export async function GET(req: NextRequest) {
     }))
 
   // --- NPS ---
+  // --- CSAT: % of ALL individual star ratings (all 7 categories) that are 4 or 5 ---
+  const allRatingsFlat: number[] = []
+  filtered.forEach((f) => {
+    allRatingsFlat.push(f.food_rating, f.service_rating, f.ambiance_rating)
+    if (f.hostess_rating != null) allRatingsFlat.push(f.hostess_rating)
+    if (f.cleanliness_rating != null) allRatingsFlat.push(f.cleanliness_rating)
+    if (f.value_rating != null) allRatingsFlat.push(f.value_rating)
+    if (f.wait_time_rating != null) allRatingsFlat.push(f.wait_time_rating)
+  })
+  const satisfiedCount = allRatingsFlat.filter((r) => r >= 4).length
+  const csat = {
+    percent: allRatingsFlat.length ? Math.round((satisfiedCount / allRatingsFlat.length) * 1000) / 10 : null,
+    satisfiedCount,
+    totalRatings: allRatingsFlat.length,
+  }
+
+  // --- NPS trend over the same day range as the rating trend ---
+  const npsTrend = trendDates.map((day) => {
+    const rows = filtered.filter((f) => f.created_at.slice(0, 10) === day && f.nps_score != null)
+    if (rows.length === 0) return { date: day, score: null, responses: 0 }
+    const p = rows.filter((f) => (f.nps_score as number) >= 9).length
+    const d = rows.filter((f) => (f.nps_score as number) <= 6).length
+    return { date: day, score: Math.round(((p - d) / rows.length) * 100), responses: rows.length }
+  })
+
   const npsResponses = filtered.filter((f) => f.nps_score != null)
   const promoters = npsResponses.filter((f) => (f.nps_score as number) >= 9).length
   const passives = npsResponses.filter((f) => (f.nps_score as number) >= 7 && (f.nps_score as number) <= 8).length
@@ -292,6 +317,8 @@ export async function GET(req: NextRequest) {
   }).filter((o) => o.count > 0)
 
   return NextResponse.json({
+    csat,
+    npsTrend,
     grandAverageOverall,
     grandAverageByBranch,
     grandAverageByOutlet,
