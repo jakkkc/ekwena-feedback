@@ -47,5 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  await supabase.from('roster_log').insert({ name: name.trim(), role_group: roleGroup, action: 'added' })
+
   return NextResponse.json({ success: true })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   Star, MessageSquare, Users2, TrendingUp, LogOut, KeyRound, ThumbsUp,
-  Compass, Award, AlertTriangle, Download, Activity, Smile,
+  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
@@ -120,7 +120,16 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   const [newPin, setNewPin] = useState('')
   const [pinError, setPinError] = useState('')
   const [pinSaving, setPinSaving] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
   const router = useRouter()
+
+  const branchComparisonRef = useRef<HTMLDivElement>(null)
+  const outletComparisonRef = useRef<HTMLDivElement>(null)
+  const ratingTrendRef = useRef<HTMLDivElement>(null)
+  const feedbackVolumeRef = useRef<HTMLDivElement>(null)
+  const npsBreakdownRef = useRef<HTMLDivElement>(null)
+  const npsTrendRef = useRef<HTMLDivElement>(null)
+  const howHeardRef = useRef<HTMLDivElement>(null)
 
   const loadStats = useCallback(async () => {
     setLoading(true)
@@ -170,6 +179,284 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
     setNewPin('')
   }
 
+  async function handleDownloadReport() {
+    if (!stats) return
+    setGeneratingReport(true)
+    try {
+      const { default: JsPDF } = await import('jspdf')
+      const html2canvas = (await import('html2canvas')).default
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new JsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 40
+      let y = margin
+
+      const BROWN = '#3E2723'
+      const BODY = '#5D4037'
+      const CAPTION = '#8a7266'
+
+      function ensureSpace(height: number) {
+        if (y + height > pageHeight - margin) {
+          doc.addPage()
+          y = margin
+        }
+      }
+
+      function addTitle(text: string) {
+        ensureSpace(30)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(14)
+        doc.setTextColor(BROWN)
+        doc.text(text, margin, y)
+        y += 20
+        doc.setDrawColor('#F3E5D3')
+        doc.line(margin, y - 8, pageWidth - margin, y - 8)
+      }
+
+      function addLine(text: string, opts?: { bold?: boolean; size?: number; color?: string }) {
+        ensureSpace(16)
+        doc.setFont('helvetica', opts?.bold ? 'bold' : 'normal')
+        doc.setFontSize(opts?.size || 10)
+        doc.setTextColor(opts?.color || BODY)
+        const lines = doc.splitTextToSize(text, pageWidth - margin * 2)
+        doc.text(lines, margin, y)
+        y += lines.length * (opts?.size ? opts.size * 1.3 : 13)
+      }
+
+      async function addImageFromRef(ref: React.RefObject<HTMLDivElement | null>, caption: string) {
+        if (!ref.current) return
+        const canvas = await html2canvas(ref.current, { backgroundColor: '#FAF3E9', scale: 2 })
+        const imgData = canvas.toDataURL('image/png')
+        const imgWidth = pageWidth - margin * 2
+        const imgHeight = (canvas.height / canvas.width) * imgWidth
+        ensureSpace(imgHeight + 30)
+        doc.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
+        y += imgHeight + 6
+        addLine(caption, { size: 9, color: CAPTION })
+        y += 10
+      }
+
+      // --- Cover page ---
+      doc.setFillColor('#F3E5D3')
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+      try {
+        const logoRes = await fetch('/logo.png')
+        const logoBlob = await logoRes.blob()
+        const logoDataUrl: string = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(logoBlob)
+        })
+        doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - 80, 120, 160, 80)
+      } catch {
+        // Logo is optional - report still generates fine without it
+      }
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(22)
+      doc.setTextColor(BROWN)
+      doc.text('Ekwena Feedback Report', pageWidth / 2, 240, { align: 'center' })
+
+      const scopeLine = `${branchFilter === 'all' ? 'All Branches' : BRANCH_NAMES[branchFilter]} · ${
+        outletFilter === 'all' ? 'All Outlets' : OUTLET_NAMES[outletFilter]
+      }`
+      const dateLine =
+        startDate || endDate ? `${startDate || 'Start'} to ${endDate || 'Now'}` : 'All-time (no date filter)'
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(12)
+      doc.setTextColor(BODY)
+      doc.text(scopeLine, pageWidth / 2, 270, { align: 'center' })
+      doc.text(dateLine, pageWidth / 2, 288, { align: 'center' })
+      doc.setFontSize(10)
+      doc.text(`Generated ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 60, { align: 'center' })
+
+      doc.addPage()
+      y = margin
+
+      // --- Executive Summary ---
+      addTitle('Executive Summary')
+      addLine(`Total Feedback: ${stats.totalCount}`, { bold: true })
+      addLine(`Overall Average Rating: ${stats.avgOverall || 'N/A'} / 5`)
+      addLine(
+        `NPS Score: ${stats.nps.score ?? 'N/A'} (${npsLabel(stats.nps.score)}) — based on ${stats.nps.responses} responses`
+      )
+      addLine(
+        `CSAT: ${stats.csat.percent != null ? stats.csat.percent + '%' : 'N/A'} satisfied (${stats.csat.satisfiedCount} of ${stats.csat.totalRatings} ratings were 4-5 stars)`
+      )
+      addLine(`Repeat Guests Detected: ${stats.repeatGuestCount}`)
+      if (stats.lowestCategory) {
+        addLine(`Lowest-Scoring Area: ${stats.lowestCategory.label} at ${stats.lowestCategory.value}/5`, {
+          color: '#b45309',
+        })
+      }
+      y += 10
+
+      // --- All-Time Overall Experience ---
+      ensureSpace(40)
+      addTitle('All-Time Overall Experience (Unfiltered)')
+      addLine(
+        `Combining all 7 rating categories across every submission ever received: ${
+          stats.grandAverageOverall.avg || 'N/A'
+        } / 5 (${stats.grandAverageOverall.count} reviews)`
+      )
+      stats.grandAverageByBranch.forEach((b) => {
+        addLine(`  ${BRANCH_NAMES[b.branch] || b.branch}: ${b.avg || 'N/A'} / 5 (${b.count} reviews)`)
+      })
+      stats.grandAverageByOutlet.forEach((o) => {
+        addLine(`  ${OUTLET_NAMES[o.outlet] || o.outlet}: ${o.avg || 'N/A'} / 5 (${o.count} reviews)`)
+      })
+      y += 10
+
+      // --- Charts ---
+      doc.addPage()
+      y = margin
+      addTitle('Visual Breakdown')
+      await addImageFromRef(
+        branchComparisonRef,
+        'Branch Comparison: average Food Quality, Service, and Ambiance ratings side by side.'
+      )
+      await addImageFromRef(
+        outletComparisonRef,
+        'Outlet Comparison: the same three core ratings, broken out by outlet.'
+      )
+      await addImageFromRef(
+        ratingTrendRef,
+        'Rating Trend: average overall rating per day across the selected period.'
+      )
+      await addImageFromRef(feedbackVolumeRef, 'Feedback Volume: number of submissions received per day.')
+      await addImageFromRef(npsBreakdownRef, 'NPS Breakdown: Promoter / Passive / Detractor composition.')
+      await addImageFromRef(npsTrendRef, 'NPS Trend: Net Promoter Score over time.')
+      await addImageFromRef(howHeardRef, 'How guests report hearing about Ekwena.')
+
+      // --- Staff Leaderboard ---
+      doc.addPage()
+      y = margin
+      addTitle('Staff Leaderboard (Who Served You)')
+      if (stats.staffLeaderboard.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head: [['Rank', 'Staff', 'Avg Rating', 'Reviews']],
+          body: stats.staffLeaderboard.map((s, i) => [`#${i + 1}`, s.name, `${s.avgOverall}★`, s.count]),
+          margin: { left: margin, right: margin },
+          styles: { font: 'helvetica', fontSize: 9, textColor: '#3E2723' },
+          headStyles: { fillColor: '#BF6B34', textColor: '#FFFDF9' },
+        })
+        // @ts-expect-error - lastAutoTable is attached to the doc instance at runtime
+        y = doc.lastAutoTable.finalY + 20
+      } else {
+        addLine('No "Who Served You" data yet.')
+      }
+
+      // --- Data Collection Volume ---
+      ensureSpace(40)
+      addTitle('Data Collection Volume')
+      if (stats.collectionVolume.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head: [['Staff', 'Submissions Collected']],
+          body: stats.collectionVolume.map((c) => [c.name, c.count]),
+          margin: { left: margin, right: margin },
+          styles: { font: 'helvetica', fontSize: 9, textColor: '#3E2723' },
+          headStyles: { fillColor: '#BF6B34', textColor: '#FFFDF9' },
+        })
+        // @ts-expect-error - lastAutoTable is attached to the doc instance at runtime
+        y = doc.lastAutoTable.finalY + 20
+      } else {
+        addLine('No collection data yet.')
+      }
+
+      // --- Needs Attention ---
+      doc.addPage()
+      y = margin
+      addTitle(`Needs Attention (${stats.needsAttention.length} flagged)`)
+      if (stats.needsAttention.length === 0) {
+        addLine('Nothing flagged in this period - great work!')
+      } else {
+        stats.needsAttention.slice(0, 15).forEach((n) => {
+          ensureSpace(40)
+          addLine(
+            `${new Date(n.createdAt).toLocaleDateString()} - ${BRANCH_NAMES[n.branch] || n.branch}${
+              n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''
+            } - Food ${n.foodRating}★ Service ${n.serviceRating}★ Ambiance ${n.ambianceRating}★${
+              n.npsScore != null ? ' NPS ' + n.npsScore : ''
+            }`,
+            { bold: true, size: 9 }
+          )
+          if (n.comment) addLine(`  "${n.comment}"`, { size: 9 })
+        })
+        if (stats.needsAttention.length > 15) {
+          addLine(`...and ${stats.needsAttention.length - 15} more. See the live dashboard for the full list.`, {
+            size: 9,
+          })
+        }
+      }
+      y += 10
+
+      // --- Staff Roster Changes ---
+      ensureSpace(40)
+      addTitle('Staff Roster Changes')
+      try {
+        const params = new URLSearchParams()
+        if (startDate) params.set('startDate', startDate)
+        if (endDate) params.set('endDate', endDate)
+        const rosterRes = await fetch(`/api/roster/history?${params.toString()}`)
+        const rosterData = await rosterRes.json()
+        const changes = rosterData.changes || []
+        if (changes.length === 0) {
+          addLine('No staff roster changes recorded in this period.')
+        } else {
+          changes.forEach((c: { name: string; roleGroup: string; action: string; createdAt: string }) => {
+            ensureSpace(16)
+            addLine(`${new Date(c.createdAt).toLocaleDateString()} - ${c.name} (${c.roleGroup}) was ${c.action}`, {
+              size: 9,
+            })
+          })
+        }
+      } catch {
+        addLine('Could not load roster change history.')
+      }
+      y += 10
+
+      // --- Recent Comments ---
+      ensureSpace(40)
+      addTitle('Recent Comments')
+      if (stats.recentComments.length === 0) {
+        addLine('No comments in this period.')
+      } else {
+        stats.recentComments.forEach((c) => {
+          ensureSpace(40)
+          addLine(
+            `${new Date(c.createdAt).toLocaleDateString()} - ${BRANCH_NAMES[c.branch] || c.branch}${
+              c.outlet ? ' · ' + (OUTLET_NAMES[c.outlet] || c.outlet) : ''
+            }`,
+            { bold: true, size: 9 }
+          )
+          addLine(`  "${c.comment}"`, { size: 9 })
+        })
+      }
+
+      // --- Footer page numbers ---
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(CAPTION)
+        doc.text(`Ekwena Feedback - Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 20, { align: 'center' })
+      }
+
+      doc.save(`ekwena-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch (err) {
+      console.error('Report generation failed', err)
+      alert('Something went wrong generating the report. Please try again.')
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
   const trendFormatted = stats?.trend.map((t) => ({
     ...t,
     label: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -201,12 +488,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               <p className="text-xs text-brown-light font-body">Welcome, {managerName}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-1 text-sm text-brown-light hover:text-brown transition font-body">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 text-sm text-brown-light hover:text-brown transition font-body"
+          >
             <LogOut size={16} /> Log Out
           </button>
         </div>
 
-        {/* Filters */}
         <div className="bg-cream rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div className="flex gap-2 flex-wrap">
             {(['all', 'cottages', 'tuuti'] as const).map((b) => (
@@ -265,6 +554,13 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 Clear dates
               </button>
             )}
+            <button
+              onClick={handleDownloadReport}
+              disabled={generatingReport || loading || !stats}
+              className="ml-auto flex items-center gap-1.5 bg-brown text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-brown-light transition disabled:opacity-50"
+            >
+              <FileDown size={16} /> {generatingReport ? 'Generating Report...' : 'Download Report (PDF)'}
+            </button>
           </div>
         </div>
 
@@ -275,8 +571,16 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <StatCard icon={<MessageSquare size={20} />} label="Total Feedback" value={stats.totalCount} />
               <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} />
-              <StatCard icon={<ThumbsUp size={20} />} label={`NPS (${stats.nps.responses} resp.)`} value={stats.nps.score ?? '—'} />
-              <StatCard icon={<Smile size={20} />} label={`CSAT (${stats.csat.totalRatings} ratings)`} value={stats.csat.percent != null ? `${stats.csat.percent}%` : '—'} />
+              <StatCard
+                icon={<ThumbsUp size={20} />}
+                label={`NPS (${stats.nps.responses} resp.)`}
+                value={stats.nps.score ?? '—'}
+              />
+              <StatCard
+                icon={<Smile size={20} />}
+                label={`CSAT (${stats.csat.totalRatings} ratings)`}
+                value={stats.csat.percent != null ? `${stats.csat.percent}%` : '—'}
+              />
               <StatCard icon={<Users2 size={20} />} label="Repeat Guests" value={stats.repeatGuestCount} />
             </div>
 
@@ -287,7 +591,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </p>
               <div className="flex items-end gap-3 mb-5">
                 <span className="text-5xl font-heading">{stats.grandAverageOverall.avg || '-'}</span>
-                <span className="text-sm text-beige-light/80 font-body mb-1">/ 5 - {stats.grandAverageOverall.count} reviews</span>
+                <span className="text-sm text-beige-light/80 font-body mb-1">
+                  / 5 - {stats.grandAverageOverall.count} reviews
+                </span>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -296,7 +602,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     {stats.grandAverageByBranch.map((b) => (
                       <div key={b.branch} className="flex justify-between text-sm font-body">
                         <span>{BRANCH_NAMES[b.branch] || b.branch}</span>
-                        <span className="font-semibold">{b.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({b.count})</span></span>
+                        <span className="font-semibold">
+                          {b.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({b.count})</span>
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -310,7 +618,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     {stats.grandAverageByOutlet.map((o) => (
                       <div key={o.outlet} className="flex justify-between text-sm font-body">
                         <span>{OUTLET_NAMES[o.outlet] || o.outlet}</span>
-                        <span className="font-semibold">{o.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({o.count})</span></span>
+                        <span className="font-semibold">
+                          {o.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({o.count})</span>
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -322,20 +632,25 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               <StatCard icon={<Star size={18} />} label="Hostess Reception" value={stats.avgHostess || '—'} />
               <StatCard icon={<Star size={18} />} label="Beverage Quality" value={stats.avgBeverage || '—'} />
               <StatCard icon={<Star size={18} />} label="Menu Variety" value={stats.avgMenuVariety || '—'} />
-              <StatCard icon={<Star size={18} />} label="Ambiance & Cleanliness" value={stats.avgAmbianceCleanliness || '—'} />
+              <StatCard
+                icon={<Star size={18} />}
+                label="Ambiance & Cleanliness"
+                value={stats.avgAmbianceCleanliness || '—'}
+              />
             </div>
 
             {stats.lowestCategory && (
               <div className="bg-orange/10 border border-orange rounded-2xl p-4 flex items-center gap-3">
                 <AlertTriangle size={20} className="text-orange shrink-0" />
                 <p className="font-body text-sm text-brown">
-                  Your lowest-scoring area right now is <span className="font-semibold">{stats.lowestCategory.label}</span> at{' '}
+                  Your lowest-scoring area right now is{' '}
+                  <span className="font-semibold">{stats.lowestCategory.label}</span> at{' '}
                   <span className="font-semibold">{stats.lowestCategory.value}/5</span>.
                 </p>
               </div>
             )}
 
-            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+            <div ref={branchComparisonRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4">Branch Comparison</h2>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={branchComparisonFormatted}>
@@ -351,7 +666,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+            <div ref={outletComparisonRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4">Outlet Comparison</h2>
               {outletComparisonFormatted && outletComparisonFormatted.length > 0 ? (
                 <ResponsiveContainer width="100%" height={240}>
@@ -371,7 +686,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               )}
             </div>
 
-            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+            <div ref={ratingTrendRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                 <TrendingUp size={18} /> Rating Trend
               </h2>
@@ -381,12 +696,20 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                   <XAxis dataKey="label" stroke="#5D4037" fontSize={11} />
                   <YAxis domain={[0, 5]} stroke="#5D4037" fontSize={12} />
                   <Tooltip contentStyle={{ fontFamily: 'var(--font-body)', borderRadius: 12 }} />
-                  <Line type="monotone" dataKey="avgOverall" name="Avg Rating" stroke="#BF6B34" strokeWidth={3} dot={{ fill: '#BF6B34', r: 3 }} connectNulls />
+                  <Line
+                    type="monotone"
+                    dataKey="avgOverall"
+                    name="Avg Rating"
+                    stroke="#BF6B34"
+                    strokeWidth={3}
+                    dot={{ fill: '#BF6B34', r: 3 }}
+                    connectNulls
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+            <div ref={feedbackVolumeRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                 <Activity size={18} /> Feedback Volume
               </h2>
@@ -401,12 +724,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+            <div ref={npsTrendRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-1 flex items-center gap-2">
                 <ThumbsUp size={18} /> NPS Trend
               </h2>
               <p className="text-xs text-brown-light font-body mb-4">
-                {stats.nps.score != null ? `Currently ${npsLabel(stats.nps.score).toLowerCase()} (${stats.nps.score})` : 'Not enough NPS responses yet'}
+                {stats.nps.score != null
+                  ? `Currently ${npsLabel(stats.nps.score).toLowerCase()} (${stats.nps.score})`
+                  : 'Not enough NPS responses yet'}
               </p>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={npsTrendFormatted}>
@@ -414,13 +739,21 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                   <XAxis dataKey="label" stroke="#5D4037" fontSize={11} />
                   <YAxis domain={[-100, 100]} stroke="#5D4037" fontSize={12} />
                   <Tooltip contentStyle={{ fontFamily: 'var(--font-body)', borderRadius: 12 }} />
-                  <Line type="monotone" dataKey="score" name="NPS" stroke="#3E2723" strokeWidth={3} dot={{ fill: '#3E2723', r: 3 }} connectNulls />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    name="NPS"
+                    stroke="#3E2723"
+                    strokeWidth={3}
+                    dot={{ fill: '#3E2723', r: 3 }}
+                    connectNulls
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+              <div ref={npsBreakdownRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
                 <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                   <ThumbsUp size={18} /> NPS Breakdown
                 </h2>
@@ -455,15 +788,33 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 flex-1 w-full">
-                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#BF6B34' }} />Promoters (9–10)</span><span className="text-brown-light">{stats.nps.promoters}</span></div>
-                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#D68A52' }} />Passives (7–8)</span><span className="text-brown-light">{stats.nps.passives}</span></div>
-                      <div className="flex justify-between text-sm font-body"><span className="text-brown flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#3E2723' }} />Detractors (0–6)</span><span className="text-brown-light">{stats.nps.detractors}</span></div>
+                      <div className="flex justify-between text-sm font-body">
+                        <span className="text-brown flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#BF6B34' }} />
+                          Promoters (9–10)
+                        </span>
+                        <span className="text-brown-light">{stats.nps.promoters}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-body">
+                        <span className="text-brown flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#D68A52' }} />
+                          Passives (7–8)
+                        </span>
+                        <span className="text-brown-light">{stats.nps.passives}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-body">
+                        <span className="text-brown flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#3E2723' }} />
+                          Detractors (0–6)
+                        </span>
+                        <span className="text-brown-light">{stats.nps.detractors}</span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+              <div ref={howHeardRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
                 <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                   <Compass size={18} /> How Guests Hear About Us
                 </h2>
@@ -489,7 +840,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                   <Award size={18} /> Staff Leaderboard
                 </h2>
                 {stats.staffLeaderboard.length === 0 ? (
-                  <p className="text-brown-light text-sm font-body">No "who served you" data yet.</p>
+                  <p className="text-brown-light text-sm font-body">No &quot;who served you&quot; data yet.</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {stats.staffLeaderboard.map((s, i) => (
@@ -531,7 +882,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 <AlertTriangle size={18} className="text-orange" /> Needs Attention
               </h2>
               {stats.needsAttention.length === 0 ? (
-                <p className="text-brown-light text-sm font-body">Nothing flagged — great work!</p>
+                <p className="text-brown-light text-sm font-body">Nothing flagged - great work!</p>
               ) : (
                 <div className="flex flex-col gap-3">
                   {stats.needsAttention.map((n) => {
@@ -542,39 +893,49 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                       { label: 'Ambiance & Cleanliness', value: n.cleanlinessRating },
                     ].filter((r) => r.value != null)
                     return (
-                    <div key={n.id} className="border border-orange/40 bg-orange/5 rounded-xl p-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-orange font-body">
-                          {BRANCH_NAMES[n.branch] || n.branch}{n.outlet ? ` · ${OUTLET_NAMES[n.outlet] || n.outlet}` : ''}
-                        </span>
-                        <span className="text-xs text-brown-light font-body">
-                          {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
-                        <span className={n.foodRating <= 2 ? 'text-red-700 font-semibold' : ''}>Food {n.foodRating}★</span>
-                        <span className={n.serviceRating <= 2 ? 'text-red-700 font-semibold' : ''}>Service {n.serviceRating}★</span>
-                        <span className={n.ambianceRating <= 2 ? 'text-red-700 font-semibold' : ''}>Ambiance {n.ambianceRating}★</span>
-                        {n.npsScore != null && (
-                          <span className={n.npsScore <= 6 ? 'text-red-700 font-semibold' : ''}>NPS {n.npsScore}</span>
-                        )}
-                      </div>
-                      {optionalRatings.length > 0 && (
-                        <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
-                          {optionalRatings.map((r) => (
-                            <span key={r.label} className={(r.value as number) <= 2 ? 'text-red-700 font-semibold' : ''}>
-                              {r.label} {r.value}★
-                            </span>
-                          ))}
+                      <div key={n.id} className="border border-orange/40 bg-orange/5 rounded-xl p-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold text-orange font-body">
+                            {BRANCH_NAMES[n.branch] || n.branch}
+                            {n.outlet ? ` · ${OUTLET_NAMES[n.outlet] || n.outlet}` : ''}
+                          </span>
+                          <span className="text-xs text-brown-light font-body">
+                            {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
                         </div>
-                      )}
-                      {n.comment && <p className="text-brown font-body text-sm mb-1">{n.comment}</p>}
-                      <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body">
-                        {n.servedBy && <span>Served by {n.servedBy}</span>}
-                        {n.guestName && <span>— {n.guestName}</span>}
-                        {n.guestPhone && <span>{n.guestPhone}</span>}
+                        <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
+                          <span className={n.foodRating <= 2 ? 'text-red-700 font-semibold' : ''}>
+                            Food {n.foodRating}★
+                          </span>
+                          <span className={n.serviceRating <= 2 ? 'text-red-700 font-semibold' : ''}>
+                            Service {n.serviceRating}★
+                          </span>
+                          <span className={n.ambianceRating <= 2 ? 'text-red-700 font-semibold' : ''}>
+                            Ambiance {n.ambianceRating}★
+                          </span>
+                          {n.npsScore != null && (
+                            <span className={n.npsScore <= 6 ? 'text-red-700 font-semibold' : ''}>NPS {n.npsScore}</span>
+                          )}
+                        </div>
+                        {optionalRatings.length > 0 && (
+                          <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body mb-1">
+                            {optionalRatings.map((r) => (
+                              <span
+                                key={r.label}
+                                className={(r.value as number) <= 2 ? 'text-red-700 font-semibold' : ''}
+                              >
+                                {r.label} {r.value}★
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {n.comment && <p className="text-brown font-body text-sm mb-1">{n.comment}</p>}
+                        <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body">
+                          {n.servedBy && <span>Served by {n.servedBy}</span>}
+                          {n.guestName && <span>— {n.guestName}</span>}
+                          {n.guestPhone && <span>{n.guestPhone}</span>}
+                        </div>
                       </div>
-                    </div>
                     )
                   })}
                 </div>
@@ -591,7 +952,8 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     <div key={c.id} className="border border-beige rounded-xl p-3">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-semibold text-orange font-body">
-                          {BRANCH_NAMES[c.branch] || c.branch}{c.outlet ? ` · ${OUTLET_NAMES[c.outlet] || c.outlet}` : ''}
+                          {BRANCH_NAMES[c.branch] || c.branch}
+                          {c.outlet ? ` · ${OUTLET_NAMES[c.outlet] || c.outlet}` : ''}
                         </span>
                         <span className="text-xs text-brown-light font-body">
                           {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -623,7 +985,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 </button>
               </div>
               <p className="text-xs text-brown-light font-body mb-3">
-                Contains guest names and phone/email left voluntarily — handle with care.
+                Contains guest names and phone/email left voluntarily - handle with care.
               </p>
               {stats.guestList.length === 0 ? (
                 <p className="text-brown-light text-sm font-body">No guest contacts collected yet.</p>
@@ -633,7 +995,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     <div key={i} className="flex justify-between items-center border-b border-beige pb-2 last:border-0 text-sm font-body">
                       <div>
                         <span className="text-brown">{g.name || 'Anonymous'}</span>
-                        {g.isRepeat && <span className="ml-2 text-[10px] bg-orange text-cream px-2 py-0.5 rounded-full">Repeat</span>}
+                        {g.isRepeat && (
+                          <span className="ml-2 text-[10px] bg-orange text-cream px-2 py-0.5 rounded-full">Repeat</span>
+                        )}
                         <p className="text-xs text-brown-light">{g.phone}</p>
                       </div>
                       <span className="text-xs text-brown-light">
@@ -659,7 +1023,8 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 <div>
                   <p className="font-body font-semibold text-brown text-sm">{s.name}</p>
                   <p className="text-xs text-brown-light font-body capitalize">
-                    {s.role}{s.branch ? ` — ${BRANCH_NAMES[s.branch]}` : ''}
+                    {s.role}
+                    {s.branch ? ` — ${BRANCH_NAMES[s.branch]}` : ''}
                   </p>
                 </div>
                 {editingStaffId === s.id ? (
@@ -672,15 +1037,25 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                       onChange={(e) => setNewPin(e.target.value)}
                       className="w-24 rounded-full border border-beige px-3 py-1 text-sm font-body focus:outline-none focus:border-orange"
                     />
-                    <button onClick={handleSavePin} disabled={pinSaving} className="text-xs bg-orange text-cream px-3 py-1.5 rounded-full font-body font-semibold hover:bg-orange-light transition disabled:opacity-50">
+                    <button
+                      onClick={handleSavePin}
+                      disabled={pinSaving}
+                      className="text-xs bg-orange text-cream px-3 py-1.5 rounded-full font-body font-semibold hover:bg-orange-light transition disabled:opacity-50"
+                    >
                       Save
                     </button>
-                    <button onClick={() => { setEditingStaffId(null); setNewPin(''); setPinError('') }} className="text-xs text-brown-light font-body">
+                    <button
+                      onClick={() => { setEditingStaffId(null); setNewPin(''); setPinError('') }}
+                      className="text-xs text-brown-light font-body"
+                    >
                       Cancel
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditingStaffId(s.id); setNewPin(''); setPinError('') }} className="flex items-center gap-1 text-xs text-brown-light hover:text-orange transition font-body">
+                  <button
+                    onClick={() => { setEditingStaffId(s.id); setNewPin(''); setPinError('') }}
+                    className="flex items-center gap-1 text-xs text-brown-light hover:text-orange transition font-body"
+                  >
                     <KeyRound size={14} /> Change PIN
                   </button>
                 )}

@@ -10,10 +10,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params
   const supabase = createServiceClient()
+
+  const { data: existing } = await supabase
+    .from('roster')
+    .select('name, role_group')
+    .eq('id', id)
+    .maybeSingle()
+
   const { error } = await supabase.from('roster').delete().eq('id', id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (existing) {
+    await supabase
+      .from('roster_log')
+      .insert({ name: existing.name, role_group: existing.role_group, action: 'removed' })
   }
 
   return NextResponse.json({ success: true })
