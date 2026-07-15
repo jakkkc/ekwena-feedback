@@ -185,219 +185,371 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
     try {
       const { default: JsPDF } = await import('jspdf')
       const html2canvas = (await import('html2canvas')).default
-      const { default: autoTable } = await import('jspdf-autotable')
+      await import('jspdf-autotable')
 
       const doc = new JsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
-      const margin = 40
+      const margin = 44
+      const contentWidth = pageWidth - margin * 2
       let y = margin
 
       const BROWN = '#3E2723'
-      const BODY = '#5D4037'
+      const BROWN_LIGHT = '#5D4037'
+      const ORANGE = '#BF6B34'
+      const ORANGE_LIGHT = '#D68A52'
+      const BEIGE = '#F3E5D3'
+      const BEIGE_LIGHT = '#FAF3E9'
+      const CREAM = '#FFFDF9'
       const CAPTION = '#8a7266'
 
+      let logoDataUrl: string | null = null
+      try {
+        const logoRes = await fetch('/logo.png')
+        const logoBlob = await logoRes.blob()
+        logoDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(logoBlob)
+        })
+      } catch {
+        // Logo is optional
+      }
+
       function ensureSpace(height: number) {
-        if (y + height > pageHeight - margin) {
+        if (y + height > pageHeight - margin - 20) {
           doc.addPage()
           y = margin
         }
       }
 
-      function addTitle(text: string) {
+      function addSectionHeader(text: string) {
         ensureSpace(30)
+        doc.setFillColor(ORANGE)
+        doc.roundedRect(margin, y - 12, 4, 16, 1, 1, 'F')
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
+        doc.setFontSize(13)
         doc.setTextColor(BROWN)
-        doc.text(text, margin, y)
+        doc.text(text, margin + 12, y)
         y += 20
-        doc.setDrawColor('#F3E5D3')
-        doc.line(margin, y - 8, pageWidth - margin, y - 8)
       }
 
-      function addLine(text: string, opts?: { bold?: boolean; size?: number; color?: string }) {
+      function addLine(text: string, opts?: { bold?: boolean; italic?: boolean; size?: number; color?: string }) {
         ensureSpace(16)
-        doc.setFont('helvetica', opts?.bold ? 'bold' : 'normal')
+        doc.setFont('helvetica', opts?.italic ? 'italic' : opts?.bold ? 'bold' : 'normal')
         doc.setFontSize(opts?.size || 10)
-        doc.setTextColor(opts?.color || BODY)
-        const lines = doc.splitTextToSize(text, pageWidth - margin * 2)
+        doc.setTextColor(opts?.color || BROWN_LIGHT)
+        const lines = doc.splitTextToSize(text, contentWidth)
         doc.text(lines, margin, y)
-        y += lines.length * (opts?.size ? opts.size * 1.3 : 13)
+        y += lines.length * (opts?.size ? opts.size * 1.35 : 14)
       }
 
-      async function addImageFromRef(ref: React.RefObject<HTMLDivElement | null>, caption: string) {
-        if (!ref.current) return
-        const canvas = await html2canvas(ref.current, { backgroundColor: '#FAF3E9', scale: 2 })
-        const imgData = canvas.toDataURL('image/png')
-        const imgWidth = pageWidth - margin * 2
-        const imgHeight = (canvas.height / canvas.width) * imgWidth
-        ensureSpace(imgHeight + 30)
-        doc.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-        y += imgHeight + 6
-        addLine(caption, { size: 9, color: CAPTION })
-        y += 10
-      }
-
-      // --- Cover page ---
-      doc.setFillColor('#F3E5D3')
-      doc.rect(0, 0, pageWidth, pageHeight, 'F')
-      try {
-        const logoRes = await fetch('/logo.png')
-        const logoBlob = await logoRes.blob()
-        const logoDataUrl: string = await new Promise((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.readAsDataURL(logoBlob)
+      function addStatCards(cards: { label: string; value: string }[]) {
+        const gap = 8
+        const cardWidth = (contentWidth - gap * (cards.length - 1)) / cards.length
+        const cardHeight = 54
+        ensureSpace(cardHeight + 14)
+        cards.forEach((c, i) => {
+          const x = margin + i * (cardWidth + gap)
+          doc.setFillColor(CREAM)
+          doc.setDrawColor(BEIGE)
+          doc.roundedRect(x, y, cardWidth, cardHeight, 6, 6, 'FD')
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(15)
+          doc.setTextColor(BROWN)
+          doc.text(c.value, x + cardWidth / 2, y + 26, { align: 'center' })
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(7.5)
+          doc.setTextColor(CAPTION)
+          const labelLines = doc.splitTextToSize(c.label, cardWidth - 10)
+          doc.text(labelLines, x + cardWidth / 2, y + 40, { align: 'center' })
         })
-        doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - 80, 120, 160, 80)
-      } catch {
-        // Logo is optional - report still generates fine without it
+        y += cardHeight + 16
+      }
+
+      function addAlertBox(text: string) {
+        ensureSpace(40)
+        const lines = doc.splitTextToSize(text, contentWidth - 20)
+        const boxHeight = lines.length * 13 + 16
+        doc.setFillColor('#FDF0E4')
+        doc.setDrawColor(ORANGE)
+        doc.roundedRect(margin, y, contentWidth, boxHeight, 6, 6, 'FD')
+        doc.setFillColor(ORANGE)
+        doc.roundedRect(margin + 10, y + 10, 4, boxHeight - 20, 1, 1, 'F')
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9.5)
+        doc.setTextColor(BROWN)
+        doc.text(lines, margin + 22, y + 18)
+        y += boxHeight + 16
+      }
+
+      function addEntryCard(blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[]) {
+        const size = 9
+        doc.setFontSize(size)
+        const wrapped = blocks.map((b) => doc.splitTextToSize(b.text, contentWidth - 20))
+        const totalLines = wrapped.reduce((sum, l) => sum + l.length, 0)
+        const cardHeight = totalLines * 12 + 16
+        ensureSpace(cardHeight + 8)
+        doc.setFillColor(BEIGE_LIGHT)
+        doc.setDrawColor(BEIGE)
+        doc.roundedRect(margin, y, contentWidth, cardHeight, 5, 5, 'FD')
+        let cy = y + 14
+        blocks.forEach((b, i) => {
+          doc.setFont('helvetica', b.italic ? 'italic' : b.bold ? 'bold' : 'normal')
+          doc.setFontSize(b.size || size)
+          doc.setTextColor(b.color || BROWN_LIGHT)
+          doc.text(wrapped[i], margin + 10, cy)
+          cy += wrapped[i].length * 12
+        })
+        y += cardHeight + 8
+      }
+
+      function drawPageChrome(pageNum: number, pageCount: number) {
+        doc.setDrawColor(BEIGE)
+        doc.setLineWidth(0.5)
+        doc.line(margin, margin - 20, pageWidth - margin, margin - 20)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(ORANGE)
+        doc.text('EKWENA FEEDBACK REPORT', margin, margin - 26)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(CAPTION)
+        doc.text(`Page ${pageNum} of ${pageCount}`, pageWidth - margin, pageHeight - 24, { align: 'right' })
+      }
+
+      // === COVER PAGE ===
+      doc.setFillColor(BEIGE)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+      doc.setFillColor(BROWN)
+      doc.rect(0, 0, pageWidth, 10, 'F')
+      doc.setFillColor(ORANGE)
+      doc.rect(0, pageHeight - 10, pageWidth, 10, 'F')
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - 75, 110, 150, 75)
       }
 
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(22)
+      doc.setFontSize(24)
       doc.setTextColor(BROWN)
-      doc.text('Ekwena Feedback Report', pageWidth / 2, 240, { align: 'center' })
+      doc.text('Ekwena Feedback Report', pageWidth / 2, 232, { align: 'center' })
 
-      const scopeLine = `${branchFilter === 'all' ? 'All Branches' : BRANCH_NAMES[branchFilter]} · ${
+      doc.setDrawColor(ORANGE)
+      doc.setLineWidth(1.5)
+      doc.line(pageWidth / 2 - 40, 244, pageWidth / 2 + 40, 244)
+
+      const scopeLine = `${branchFilter === 'all' ? 'All Branches' : BRANCH_NAMES[branchFilter]}  ·  ${
         outletFilter === 'all' ? 'All Outlets' : OUTLET_NAMES[outletFilter]
       }`
       const dateLine =
-        startDate || endDate ? `${startDate || 'Start'} to ${endDate || 'Now'}` : 'All-time (no date filter)'
+        startDate || endDate ? `${startDate || 'Start'} → ${endDate || 'Now'}` : 'All-time (no date filter)'
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(12)
-      doc.setTextColor(BODY)
-      doc.text(scopeLine, pageWidth / 2, 270, { align: 'center' })
-      doc.text(dateLine, pageWidth / 2, 288, { align: 'center' })
+      doc.setTextColor(BROWN_LIGHT)
+      doc.text(scopeLine, pageWidth / 2, 268, { align: 'center' })
       doc.setFontSize(10)
-      doc.text(`Generated ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 60, { align: 'center' })
+      doc.setTextColor(CAPTION)
+      doc.text(dateLine, pageWidth / 2, 286, { align: 'center' })
+
+      doc.setFillColor(CREAM)
+      doc.roundedRect(pageWidth / 2 - 100, 320, 200, 60, 8, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(20)
+      doc.setTextColor(ORANGE)
+      doc.text(`${stats.avgOverall || '-'} / 5`, pageWidth / 2, 350, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(CAPTION)
+      doc.text('OVERALL RATING THIS PERIOD', pageWidth / 2, 366, { align: 'center' })
+
+      doc.setFontSize(9)
+      doc.setTextColor(CAPTION)
+      doc.text(`Generated ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 40, { align: 'center' })
 
       doc.addPage()
       y = margin
 
-      // --- Executive Summary ---
-      addTitle('Executive Summary')
-      addLine(`Total Feedback: ${stats.totalCount}`, { bold: true })
-      addLine(`Overall Average Rating: ${stats.avgOverall || 'N/A'} / 5`)
-      addLine(
-        `NPS Score: ${stats.nps.score ?? 'N/A'} (${npsLabel(stats.nps.score)}) — based on ${stats.nps.responses} responses`
-      )
-      addLine(
-        `CSAT: ${stats.csat.percent != null ? stats.csat.percent + '%' : 'N/A'} satisfied (${stats.csat.satisfiedCount} of ${stats.csat.totalRatings} ratings were 4-5 stars)`
-      )
-      addLine(`Repeat Guests Detected: ${stats.repeatGuestCount}`)
+      // === EXECUTIVE SUMMARY ===
+      addSectionHeader('Executive Summary')
+      addStatCards([
+        { label: 'Total Feedback', value: String(stats.totalCount) },
+        { label: 'Overall Avg', value: `${stats.avgOverall || '-'}/5` },
+        { label: `NPS (${stats.nps.responses})`, value: String(stats.nps.score ?? '-') },
+        { label: `CSAT (${stats.csat.totalRatings})`, value: stats.csat.percent != null ? `${stats.csat.percent}%` : '-' },
+        { label: 'Repeat Guests', value: String(stats.repeatGuestCount) },
+      ])
       if (stats.lowestCategory) {
-        addLine(`Lowest-Scoring Area: ${stats.lowestCategory.label} at ${stats.lowestCategory.value}/5`, {
-          color: '#b45309',
+        addAlertBox(
+          `Lowest-scoring area: ${stats.lowestCategory.label} at ${stats.lowestCategory.value}/5 — worth prioritizing this period.`
+        )
+      }
+
+      // === ALL-TIME OVERALL EXPERIENCE ===
+      ensureSpace(120)
+      addSectionHeader('All-Time Overall Experience (Unfiltered)')
+      addLine('Combines all 7 rating categories across every submission ever received, regardless of the filters above.', {
+        size: 8.5,
+        italic: true,
+        color: CAPTION,
+      })
+      y += 4
+      const bigCardHeight = 70
+      ensureSpace(bigCardHeight + 10)
+      doc.setFillColor(BROWN)
+      doc.roundedRect(margin, y, contentWidth, bigCardHeight, 8, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(24)
+      doc.setTextColor(CREAM)
+      doc.text(`${stats.grandAverageOverall.avg || '-'}`, margin + 20, y + 42)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(BEIGE)
+      doc.text(`/ 5  ·  ${stats.grandAverageOverall.count} reviews all-time`, margin + 20, y + 58)
+
+      let bx = margin + 170
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(ORANGE_LIGHT)
+      doc.text('BY BRANCH', bx, y + 20)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(CREAM)
+      let by = y + 34
+      stats.grandAverageByBranch.forEach((b) => {
+        doc.text(`${BRANCH_NAMES[b.branch] || b.branch}: ${b.avg || '-'}/5 (${b.count})`, bx, by)
+        by += 13
+      })
+
+      bx = margin + 350
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(ORANGE_LIGHT)
+      doc.text('BY OUTLET', bx, y + 20)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.5)
+      doc.setTextColor(CREAM)
+      by = y + 34
+      if (stats.grandAverageByOutlet.length === 0) {
+        doc.text('No outlet data yet.', bx, by)
+      } else {
+        stats.grandAverageByOutlet.forEach((o) => {
+          doc.text(`${OUTLET_NAMES[o.outlet] || o.outlet}: ${o.avg || '-'}/5`, bx, by)
+          by += 13
         })
       }
-      y += 10
+      y += bigCardHeight + 20
 
-      // --- All-Time Overall Experience ---
-      ensureSpace(40)
-      addTitle('All-Time Overall Experience (Unfiltered)')
-      addLine(
-        `Combining all 7 rating categories across every submission ever received: ${
-          stats.grandAverageOverall.avg || 'N/A'
-        } / 5 (${stats.grandAverageOverall.count} reviews)`
-      )
-      stats.grandAverageByBranch.forEach((b) => {
-        addLine(`  ${BRANCH_NAMES[b.branch] || b.branch}: ${b.avg || 'N/A'} / 5 (${b.count} reviews)`)
-      })
-      stats.grandAverageByOutlet.forEach((o) => {
-        addLine(`  ${OUTLET_NAMES[o.outlet] || o.outlet}: ${o.avg || 'N/A'} / 5 (${o.count} reviews)`)
-      })
-      y += 10
-
-      // --- Charts ---
+      // === CHARTS ===
       doc.addPage()
       y = margin
-      addTitle('Visual Breakdown')
-      await addImageFromRef(
-        branchComparisonRef,
-        'Branch Comparison: average Food Quality, Service, and Ambiance ratings side by side.'
-      )
-      await addImageFromRef(
-        outletComparisonRef,
-        'Outlet Comparison: the same three core ratings, broken out by outlet.'
-      )
-      await addImageFromRef(
-        ratingTrendRef,
-        'Rating Trend: average overall rating per day across the selected period.'
-      )
-      await addImageFromRef(feedbackVolumeRef, 'Feedback Volume: number of submissions received per day.')
-      await addImageFromRef(npsBreakdownRef, 'NPS Breakdown: Promoter / Passive / Detractor composition.')
-      await addImageFromRef(npsTrendRef, 'NPS Trend: Net Promoter Score over time.')
-      await addImageFromRef(howHeardRef, 'How guests report hearing about Ekwena.')
+      addSectionHeader('Visual Breakdown')
 
-      // --- Staff Leaderboard ---
+      async function addChart(ref: React.RefObject<HTMLDivElement | null>, caption: string) {
+        if (!ref.current) return
+        const canvas = await html2canvas(ref.current, { backgroundColor: '#FAF3E9', scale: 2 })
+        const imgData = canvas.toDataURL('image/png')
+        const imgWidth = contentWidth
+        const imgHeight = (canvas.height / canvas.width) * imgWidth
+        ensureSpace(imgHeight + 34)
+        doc.setFillColor(CREAM)
+        doc.setDrawColor(BEIGE)
+        doc.roundedRect(margin, y, imgWidth, imgHeight + 6, 6, 6, 'FD')
+        doc.addImage(imgData, 'PNG', margin + 3, y + 3, imgWidth - 6, imgHeight)
+        y += imgHeight + 10
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(8.5)
+        doc.setTextColor(CAPTION)
+        const capLines = doc.splitTextToSize(caption, contentWidth)
+        doc.text(capLines, margin, y)
+        y += capLines.length * 11 + 12
+      }
+
+      await addChart(branchComparisonRef, 'Branch Comparison — average Food Quality, Service, and Ambiance side by side.')
+      await addChart(outletComparisonRef, 'Outlet Comparison — the same three core ratings, broken out by outlet.')
+      await addChart(ratingTrendRef, 'Rating Trend — average overall rating per day across the selected period.')
+      await addChart(feedbackVolumeRef, 'Feedback Volume — number of submissions received per day.')
+      await addChart(npsBreakdownRef, 'NPS Breakdown — Promoter / Passive / Detractor composition.')
+      await addChart(npsTrendRef, 'NPS Trend — Net Promoter Score over time.')
+      await addChart(howHeardRef, 'How guests report hearing about Ekwena.')
+
+      // === STAFF LEADERBOARD ===
       doc.addPage()
       y = margin
-      addTitle('Staff Leaderboard (Who Served You)')
+      addSectionHeader('Staff Leaderboard (Who Served You)')
       if (stats.staffLeaderboard.length > 0) {
-        autoTable(doc, {
+        // @ts-expect-error - jspdf-autotable attaches autoTable to jsPDF's prototype at runtime
+        doc.autoTable({
           startY: y,
           head: [['Rank', 'Staff', 'Avg Rating', 'Reviews']],
           body: stats.staffLeaderboard.map((s, i) => [`#${i + 1}`, s.name, `${s.avgOverall}★`, s.count]),
           margin: { left: margin, right: margin },
-          styles: { font: 'helvetica', fontSize: 9, textColor: '#3E2723' },
-          headStyles: { fillColor: '#BF6B34', textColor: '#FFFDF9' },
+          theme: 'striped',
+          styles: { font: 'helvetica', fontSize: 9, textColor: BROWN, cellPadding: 6 },
+          headStyles: { fillColor: BROWN, textColor: CREAM, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: BEIGE_LIGHT },
         })
-        // @ts-expect-error - lastAutoTable is attached to the doc instance at runtime
-        y = doc.lastAutoTable.finalY + 20
+        // @ts-expect-error - lastAutoTable is added by the plugin at runtime
+        y = doc.lastAutoTable.finalY + 24
       } else {
-        addLine('No "Who Served You" data yet.')
+        addLine('No "Who Served You" data yet.', { italic: true, color: CAPTION })
+        y += 10
       }
 
-      // --- Data Collection Volume ---
-      ensureSpace(40)
-      addTitle('Data Collection Volume')
+      // === DATA COLLECTION VOLUME ===
+      ensureSpace(60)
+      addSectionHeader('Data Collection Volume')
       if (stats.collectionVolume.length > 0) {
-        autoTable(doc, {
+        // @ts-expect-error - runtime plugin method
+        doc.autoTable({
           startY: y,
           head: [['Staff', 'Submissions Collected']],
           body: stats.collectionVolume.map((c) => [c.name, c.count]),
           margin: { left: margin, right: margin },
-          styles: { font: 'helvetica', fontSize: 9, textColor: '#3E2723' },
-          headStyles: { fillColor: '#BF6B34', textColor: '#FFFDF9' },
+          theme: 'striped',
+          styles: { font: 'helvetica', fontSize: 9, textColor: BROWN, cellPadding: 6 },
+          headStyles: { fillColor: ORANGE, textColor: CREAM, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: BEIGE_LIGHT },
         })
-        // @ts-expect-error - lastAutoTable is attached to the doc instance at runtime
+        // @ts-expect-error - runtime plugin property
         y = doc.lastAutoTable.finalY + 20
       } else {
-        addLine('No collection data yet.')
+        addLine('No collection data yet.', { italic: true, color: CAPTION })
       }
 
-      // --- Needs Attention ---
+      // === NEEDS ATTENTION ===
       doc.addPage()
       y = margin
-      addTitle(`Needs Attention (${stats.needsAttention.length} flagged)`)
+      addSectionHeader(`Needs Attention (${stats.needsAttention.length} flagged)`)
       if (stats.needsAttention.length === 0) {
-        addLine('Nothing flagged in this period - great work!')
+        addLine('Nothing flagged in this period — great work!', { italic: true, color: CAPTION })
       } else {
         stats.needsAttention.slice(0, 15).forEach((n) => {
-          ensureSpace(40)
-          addLine(
-            `${new Date(n.createdAt).toLocaleDateString()} - ${BRANCH_NAMES[n.branch] || n.branch}${
-              n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''
-            } - Food ${n.foodRating}★ Service ${n.serviceRating}★ Ambiance ${n.ambianceRating}★${
-              n.npsScore != null ? ' NPS ' + n.npsScore : ''
-            }`,
-            { bold: true, size: 9 }
-          )
-          if (n.comment) addLine(`  "${n.comment}"`, { size: 9 })
+          const blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[] = [
+            {
+              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
+              bold: true,
+              color: ORANGE,
+            },
+            {
+              text: `Food ${n.foodRating}★  Service ${n.serviceRating}★  Ambiance ${n.ambianceRating}★${n.npsScore != null ? '  ·  NPS ' + n.npsScore : ''}`,
+            },
+          ]
+          if (n.comment) blocks.push({ text: `“${n.comment}”`, italic: true, color: BROWN })
+          addEntryCard(blocks)
         })
         if (stats.needsAttention.length > 15) {
           addLine(`...and ${stats.needsAttention.length - 15} more. See the live dashboard for the full list.`, {
-            size: 9,
+            size: 8.5,
+            italic: true,
+            color: CAPTION,
           })
         }
       }
-      y += 10
 
-      // --- Staff Roster Changes ---
-      ensureSpace(40)
-      addTitle('Staff Roster Changes')
+      // === STAFF ROSTER CHANGES ===
+      ensureSpace(50)
+      addSectionHeader('Staff Roster Changes')
       try {
         const params = new URLSearchParams()
         if (startDate) params.set('startDate', startDate)
@@ -406,46 +558,49 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         const rosterData = await rosterRes.json()
         const changes = rosterData.changes || []
         if (changes.length === 0) {
-          addLine('No staff roster changes recorded in this period.')
+          addLine('No staff roster changes recorded in this period.', { italic: true, color: CAPTION })
         } else {
           changes.forEach((c: { name: string; roleGroup: string; action: string; createdAt: string }) => {
-            ensureSpace(16)
-            addLine(`${new Date(c.createdAt).toLocaleDateString()} - ${c.name} (${c.roleGroup}) was ${c.action}`, {
+            const color = c.action === 'added' ? '#3E8B5C' : '#B45309'
+            addLine(`${new Date(c.createdAt).toLocaleDateString()}  —  ${c.name} (${c.roleGroup}) was ${c.action}`, {
               size: 9,
+              color,
             })
           })
         }
       } catch {
-        addLine('Could not load roster change history.')
+        addLine('Could not load roster change history.', { italic: true, color: CAPTION })
       }
       y += 10
 
-      // --- Recent Comments ---
-      ensureSpace(40)
-      addTitle('Recent Comments')
+      // === RECENT COMMENTS ===
+      ensureSpace(50)
+      addSectionHeader('Recent Comments')
       if (stats.recentComments.length === 0) {
-        addLine('No comments in this period.')
+        addLine('No comments in this period.', { italic: true, color: CAPTION })
       } else {
         stats.recentComments.forEach((c) => {
-          ensureSpace(40)
-          addLine(
-            `${new Date(c.createdAt).toLocaleDateString()} - ${BRANCH_NAMES[c.branch] || c.branch}${
-              c.outlet ? ' · ' + (OUTLET_NAMES[c.outlet] || c.outlet) : ''
-            }`,
-            { bold: true, size: 9 }
-          )
-          addLine(`  "${c.comment}"`, { size: 9 })
+          addEntryCard([
+            {
+              text: `${BRANCH_NAMES[c.branch] || c.branch}${c.outlet ? ' · ' + (OUTLET_NAMES[c.outlet] || c.outlet) : ''}  —  ${new Date(c.createdAt).toLocaleDateString()}`,
+              bold: true,
+              color: ORANGE,
+            },
+            { text: `“${c.comment}”`, italic: true, color: BROWN },
+            {
+              text: `Food ${c.foodRating}★  Service ${c.serviceRating}★  Ambiance ${c.ambianceRating}★${c.servedBy ? '  ·  Served by ' + c.servedBy : ''}`,
+              size: 8,
+              color: CAPTION,
+            },
+          ])
         })
       }
 
-      // --- Footer page numbers ---
+      // === PAGE CHROME (skip cover page) ===
       const pageCount = doc.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
+      for (let i = 2; i <= pageCount; i++) {
         doc.setPage(i)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8)
-        doc.setTextColor(CAPTION)
-        doc.text(`Ekwena Feedback - Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 20, { align: 'center' })
+        drawPageChrome(i - 1, pageCount - 1)
       }
 
       doc.save(`ekwena-report-${new Date().toISOString().slice(0, 10)}.pdf`)
@@ -456,7 +611,6 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       setGeneratingReport(false)
     }
   }
-
   const trendFormatted = stats?.trend.map((t) => ({
     ...t,
     label: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
