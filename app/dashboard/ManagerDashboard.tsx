@@ -447,22 +447,59 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
 
       async function addChart(ref: React.RefObject<HTMLDivElement | null>, caption: string) {
         if (!ref.current) return
-        const canvas = await html2canvas(ref.current, { backgroundColor: '#FAF3E9', scale: 2 })
-        const imgData = canvas.toDataURL('image/png')
-        const imgWidth = contentWidth
-        const imgHeight = (canvas.height / canvas.width) * imgWidth
-        ensureSpace(imgHeight + 34)
-        doc.setFillColor(CREAM)
-        doc.setDrawColor(BEIGE)
-        doc.roundedRect(margin, y, imgWidth, imgHeight + 6, 6, 6, 'FD')
-        doc.addImage(imgData, 'PNG', margin + 3, y + 3, imgWidth - 6, imgHeight)
-        y += imgHeight + 10
-        doc.setFont('helvetica', 'italic')
-        doc.setFontSize(8.5)
-        doc.setTextColor(CAPTION)
-        const capLines = doc.splitTextToSize(caption, contentWidth)
-        doc.text(capLines, margin, y)
-        y += capLines.length * 11 + 12
+        try {
+          const canvas = await html2canvas(ref.current, {
+            backgroundColor: '#FAF3E9',
+            scale: 2,
+            onclone: (clonedDoc) => {
+              // html2canvas can't parse modern CSS color functions (e.g. oklch),
+              // which some Tailwind v4 defaults use elsewhere on the page even
+              // though our own components use plain hex. Strip any stylesheet
+              // rules using unsupported color functions from the cloned document
+              // used for rendering, so they can't interfere with this capture.
+              const styleSheets = Array.from(clonedDoc.styleSheets)
+              styleSheets.forEach((sheet) => {
+                try {
+                  const rules = sheet.cssRules
+                  for (let i = rules.length - 1; i >= 0; i--) {
+                    const ruleText = rules[i].cssText || ''
+                    if (ruleText.includes('oklch') || ruleText.includes('lab(') || ruleText.includes('lch(')) {
+                      sheet.deleteRule(i)
+                    }
+                  }
+                } catch {
+                  // Cross-origin or inaccessible stylesheet - skip it
+                }
+              })
+            },
+          })
+          const imgData = canvas.toDataURL('image/png')
+          const imgWidth = contentWidth
+          const imgHeight = (canvas.height / canvas.width) * imgWidth
+          ensureSpace(imgHeight + 34)
+          doc.setFillColor(CREAM)
+          doc.setDrawColor(BEIGE)
+          doc.roundedRect(margin, y, imgWidth, imgHeight + 6, 6, 6, 'FD')
+          doc.addImage(imgData, 'PNG', margin + 3, y + 3, imgWidth - 6, imgHeight)
+          y += imgHeight + 10
+          doc.setFont('helvetica', 'italic')
+          doc.setFontSize(8.5)
+          doc.setTextColor(CAPTION)
+          const capLines = doc.splitTextToSize(caption, contentWidth)
+          doc.text(capLines, margin, y)
+          y += capLines.length * 11 + 12
+        } catch (chartErr) {
+          console.error('Chart capture failed for:', caption, chartErr)
+          ensureSpace(40)
+          doc.setFillColor(BEIGE_LIGHT)
+          doc.setDrawColor(BEIGE)
+          doc.roundedRect(margin, y, contentWidth, 30, 6, 6, 'FD')
+          doc.setFont('helvetica', 'italic')
+          doc.setFontSize(8.5)
+          doc.setTextColor(CAPTION)
+          doc.text('(Chart could not be captured - see live dashboard)', margin + 10, y + 18)
+          y += 40
+        }
       }
 
       await addChart(branchComparisonRef, 'Branch Comparison — average Food Quality, Service, and Ambiance side by side.')
@@ -606,7 +643,8 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       doc.save(`ekwena-report-${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch (err) {
       console.error('Report generation failed', err)
-      alert('Something went wrong generating the report. Please try again.')
+      const message = err instanceof Error ? err.message : String(err)
+      alert('Report generation failed: ' + message)
     } finally {
       setGeneratingReport(false)
     }
