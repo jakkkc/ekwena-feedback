@@ -185,7 +185,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
     try {
       const { default: JsPDF } = await import('jspdf')
       const html2canvas = (await import('html2canvas')).default
-      await import('jspdf-autotable')
+      const { default: autoTable } = await import('jspdf-autotable')
 
       const doc = new JsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = doc.internal.pageSize.getWidth()
@@ -515,8 +515,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       y = margin
       addSectionHeader('Staff Leaderboard (Who Served You)')
       if (stats.staffLeaderboard.length > 0) {
-        // @ts-expect-error - jspdf-autotable attaches autoTable to jsPDF's prototype at runtime
-        doc.autoTable({
+        autoTable(doc, {
           startY: y,
           head: [['Rank', 'Staff', 'Avg Rating', 'Reviews']],
           body: stats.staffLeaderboard.map((s, i) => [`#${i + 1}`, s.name, `${s.avgOverall}★`, s.count]),
@@ -526,7 +525,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
           headStyles: { fillColor: BROWN, textColor: CREAM, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: BEIGE_LIGHT },
         })
-        // @ts-expect-error - lastAutoTable is added by the plugin at runtime
+        // @ts-expect-error - lastAutoTable is added to the doc instance by the plugin at runtime
         y = doc.lastAutoTable.finalY + 24
       } else {
         addLine('No "Who Served You" data yet.', { italic: true, color: CAPTION })
@@ -537,8 +536,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       ensureSpace(60)
       addSectionHeader('Data Collection Volume')
       if (stats.collectionVolume.length > 0) {
-        // @ts-expect-error - runtime plugin method
-        doc.autoTable({
+        autoTable(doc, {
           startY: y,
           head: [['Staff', 'Submissions Collected']],
           body: stats.collectionVolume.map((c) => [c.name, c.count]),
@@ -548,7 +546,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
           headStyles: { fillColor: ORANGE, textColor: CREAM, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: BEIGE_LIGHT },
         })
-        // @ts-expect-error - runtime plugin property
+        // @ts-expect-error - lastAutoTable is added to the doc instance by the plugin at runtime
         y = doc.lastAutoTable.finalY + 20
       } else {
         addLine('No collection data yet.', { italic: true, color: CAPTION })
