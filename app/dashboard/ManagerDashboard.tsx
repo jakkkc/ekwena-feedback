@@ -283,6 +283,66 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         y += boxHeight + 16
       }
 
+      function addNpsBreakdownVisual() {
+        const total = stats!.nps.promoters + stats!.nps.passives + stats!.nps.detractors
+        const boxHeight = total > 0 ? 100 : 60
+        ensureSpace(boxHeight + 16)
+        doc.setFillColor(CREAM)
+        doc.setDrawColor(BEIGE)
+        doc.roundedRect(margin, y, contentWidth, boxHeight, 6, 6, 'FD')
+
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(11)
+        doc.setTextColor(BROWN)
+        doc.text('NPS Breakdown', margin + 14, y + 20)
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(CAPTION)
+        doc.text(
+          stats!.nps.responses > 0
+            ? `Score: ${stats!.nps.score} (${npsLabel(stats!.nps.score)}) from ${stats!.nps.responses} responses`
+            : 'No NPS responses yet',
+          margin + 14,
+          y + 34
+        )
+
+        if (total > 0) {
+          const barX = margin + 14
+          const barY = y + 46
+          const barWidth = contentWidth - 28
+          const barHeight = 16
+          const promoWidth = (stats!.nps.promoters / total) * barWidth
+          const passWidth = (stats!.nps.passives / total) * barWidth
+          const detrWidth = (stats!.nps.detractors / total) * barWidth
+
+          doc.setFillColor(ORANGE)
+          doc.rect(barX, barY, promoWidth, barHeight, 'F')
+          doc.setFillColor(ORANGE_LIGHT)
+          doc.rect(barX + promoWidth, barY, passWidth, barHeight, 'F')
+          doc.setFillColor(BROWN)
+          doc.rect(barX + promoWidth + passWidth, barY, detrWidth, barHeight, 'F')
+
+          const legendY = barY + barHeight + 20
+          const legendItems = [
+            { label: `Promoters (9-10): ${stats!.nps.promoters}`, color: ORANGE },
+            { label: `Passives (7-8): ${stats!.nps.passives}`, color: ORANGE_LIGHT },
+            { label: `Detractors (0-6): ${stats!.nps.detractors}`, color: BROWN },
+          ]
+          let lx = barX
+          doc.setFontSize(8.5)
+          legendItems.forEach((item) => {
+            doc.setFillColor(item.color)
+            doc.rect(lx, legendY - 8, 8, 8, 'F')
+            doc.setTextColor(BROWN_LIGHT)
+            doc.text(item.label, lx + 12, legendY)
+            lx += doc.getTextWidth(item.label) + 34
+          })
+        }
+
+        y += boxHeight + 16
+      }
+
       function addEntryCard(blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[]) {
         const size = 9
         doc.setFontSize(size)
@@ -506,7 +566,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       await addChart(outletComparisonRef, 'Outlet Comparison — the same three core ratings, broken out by outlet.')
       await addChart(ratingTrendRef, 'Rating Trend — average overall rating per day across the selected period.')
       await addChart(feedbackVolumeRef, 'Feedback Volume — number of submissions received per day.')
-      await addChart(npsBreakdownRef, 'NPS Breakdown — Promoter / Passive / Detractor composition.')
+      addNpsBreakdownVisual()
       await addChart(npsTrendRef, 'NPS Trend — Net Promoter Score over time.')
       await addChart(howHeardRef, 'How guests report hearing about Ekwena.')
 
