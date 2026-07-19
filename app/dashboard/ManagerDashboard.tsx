@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   Star, MessageSquare, Users2, TrendingUp, LogOut, KeyRound, ThumbsUp,
-  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown,
+  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown, Sparkles,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
@@ -60,6 +60,13 @@ type Stats = {
   howHeard: { label: string; count: number }[]
   staffLeaderboard: { name: string; avgOverall: number; count: number }[]
   collectionVolume: { name: string; count: number }[]
+  bestFeedback: {
+    id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
+    ambianceRating: number; hostessRating: number | null; cleanlinessRating: number | null
+    valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
+    comment: string | null; servedBy: string | null
+    collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
+  }[]
   needsAttention: {
     id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
     ambianceRating: number; hostessRating: number | null; cleanlinessRating: number | null
@@ -612,6 +619,36 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         addLine('No collection data yet.', { italic: true, color: CAPTION })
       }
 
+      // === BEST FEEDBACK ===
+      doc.addPage()
+      y = margin
+      addSectionHeader(`Best Feedback (${stats.bestFeedback.length} standout reviews)`)
+      if (stats.bestFeedback.length === 0) {
+        addLine('No standout 4-5 star reviews yet.', { italic: true, color: CAPTION })
+      } else {
+        stats.bestFeedback.slice(0, 15).forEach((n) => {
+          const blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[] = [
+            {
+              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
+              bold: true,
+              color: '#3E8B5C',
+            },
+            {
+              text: `Food ${n.foodRating}★  Service ${n.serviceRating}★  Ambiance ${n.ambianceRating}★${n.npsScore != null ? '  ·  NPS ' + n.npsScore : ''}`,
+            },
+          ]
+          if (n.comment) blocks.push({ text: `“${n.comment}”`, italic: true, color: BROWN })
+          addEntryCard(blocks)
+        })
+        if (stats.bestFeedback.length > 15) {
+          addLine(`...and ${stats.bestFeedback.length - 15} more. See the live dashboard for the full list.`, {
+            size: 8.5,
+            italic: true,
+            color: CAPTION,
+          })
+        }
+      }
+
       // === NEEDS ATTENTION ===
       doc.addPage()
       y = margin
@@ -1125,6 +1162,58 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                   </ResponsiveContainer>
                 )}
               </div>
+            </div>
+
+            <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm border-2 border-green-600/40">
+              <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
+                <Sparkles size={18} className="text-green-600" /> Best Feedback
+              </h2>
+              {stats.bestFeedback.length === 0 ? (
+                <p className="text-brown-light text-sm font-body">No standout 4-5 star reviews yet.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {stats.bestFeedback.map((n) => {
+                    const optionalRatings: { label: string; value: number | null }[] = [
+                      { label: 'Hostess', value: n.hostessRating },
+                      { label: 'Beverage', value: n.waitTimeRating },
+                      { label: 'Menu Variety', value: n.valueRating },
+                      { label: 'Ambiance & Cleanliness', value: n.cleanlinessRating },
+                    ].filter((r) => r.value != null)
+                    return (
+                      <div key={n.id} className="border border-green-600/40 bg-green-50 rounded-xl p-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold text-green-700 font-body">
+                            {BRANCH_NAMES[n.branch] || n.branch}
+                            {n.outlet ? ` · ${OUTLET_NAMES[n.outlet] || n.outlet}` : ''}
+                          </span>
+                          <span className="text-xs text-brown-light font-body">
+                            {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs text-green-700 font-body mb-1">
+                          <span>Food {n.foodRating}★</span>
+                          <span>Service {n.serviceRating}★</span>
+                          <span>Ambiance {n.ambianceRating}★</span>
+                          {n.npsScore != null && <span>NPS {n.npsScore}</span>}
+                        </div>
+                        {optionalRatings.length > 0 && (
+                          <div className="flex flex-wrap gap-3 text-xs text-green-700 font-body mb-1">
+                            {optionalRatings.map((r) => (
+                              <span key={r.label}>{r.label} {r.value}★</span>
+                            ))}
+                          </div>
+                        )}
+                        {n.comment && <p className="text-brown font-body text-sm mb-1">{n.comment}</p>}
+                        <div className="flex flex-wrap gap-3 text-xs text-brown-light font-body">
+                          {n.servedBy && <span>Served by {n.servedBy}</span>}
+                          {n.guestName && <span>— {n.guestName}</span>}
+                          {n.guestPhone && <span>{n.guestPhone}</span>}
+                        </div>
+                      </div>
+                   )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm border-2 border-orange/40">

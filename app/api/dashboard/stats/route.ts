@@ -211,6 +211,38 @@ export async function GET(req: NextRequest) {
     return { date: day, score: Math.round(((p - d) / rows.length) * 100), responses: rows.length }
   })
 
+  // --- Best Feedback: every rating given (required + any optional) is 4 or 5 ---
+  const bestFeedback = filtered
+    .filter((f) => {
+      const ratings = [f.food_rating, f.service_rating, f.ambiance_rating]
+      if (f.hostess_rating != null) ratings.push(f.hostess_rating)
+      if (f.cleanliness_rating != null) ratings.push(f.cleanliness_rating)
+      if (f.value_rating != null) ratings.push(f.value_rating)
+      if (f.wait_time_rating != null) ratings.push(f.wait_time_rating)
+      return ratings.every((r) => r >= 4)
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 20)
+    .map((f) => ({
+      id: f.id,
+      branch: f.branch,
+      outlet: f.outlet,
+      foodRating: f.food_rating,
+      serviceRating: f.service_rating,
+      ambianceRating: f.ambiance_rating,
+      hostessRating: f.hostess_rating,
+      cleanlinessRating: f.cleanliness_rating,
+      valueRating: f.value_rating,
+      waitTimeRating: f.wait_time_rating,
+      npsScore: f.nps_score,
+      comment: f.comment,
+      servedBy: f.served_by,
+      collectedBy: f.collected_by,
+      guestName: f.guest_name,
+      guestPhone: f.guest_phone,
+      createdAt: f.created_at,
+    }))
+
   const npsResponses = filtered.filter((f) => f.nps_score != null)
   const promoters = npsResponses.filter((f) => (f.nps_score as number) >= 9).length
   const passives = npsResponses.filter((f) => (f.nps_score as number) >= 7 && (f.nps_score as number) <= 8).length
@@ -317,6 +349,7 @@ export async function GET(req: NextRequest) {
   }).filter((o) => o.count > 0)
 
   return NextResponse.json({
+    bestFeedback,
     csat,
     npsTrend,
     grandAverageOverall,
