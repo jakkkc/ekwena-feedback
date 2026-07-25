@@ -75,7 +75,7 @@ export function WaiterFeedbackForm({
   const [howHeard, setHowHeard] = useState('')
   const [howHeardOther, setHowHeardOther] = useState('')
 
-  const [servedBy, setServedBy] = useState('')
+  const [servedBy, setServedBy] = useState<string[]>([])
 
   const [comment, setComment] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -98,10 +98,22 @@ export function WaiterFeedbackForm({
     setHostess(0); setBeverage(0); setFoodQuality(0); setMenuVariety(0)
     setService(0); setGeneralAmbiance(0); setAmbianceCleanliness(0)
     setNps(null); setHowHeard(''); setHowHeardOther('')
-    setServedBy('')
+    setServedBy([])
     setComment(''); setGuestName(''); setGuestContact('')
     setError('')
     setPhase('form')
+  }
+
+  function handleStartOver() {
+    if (window.confirm('Start over? This will clear everything entered so far for this guest.')) {
+      resetForm()
+    }
+  }
+
+  function toggleServedBy(name: string) {
+    setServedBy((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    )
   }
 
   async function goNext() {
@@ -175,7 +187,7 @@ export function WaiterFeedbackForm({
         nps_score: nps ?? undefined,
         how_heard: howHeard,
         how_heard_other: howHeardOther,
-        served_by: servedBy || undefined,
+        served_by: servedBy.length > 0 ? servedBy.join(', ') : undefined,
         comment,
         guest_name: guestName,
         guest_phone: guestContact,
@@ -224,9 +236,14 @@ export function WaiterFeedbackForm({
           <p>{collectedByName}</p>
           <p className="font-semibold text-brown">{outletName} — {branchName}</p>
         </div>
-        <button onClick={handleLogout} className="text-xs text-brown-light underline font-body">
-          Log Out
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={handleStartOver} className="text-xs text-brown-light underline font-body">
+            Start Over
+          </button>
+          <button onClick={handleLogout} className="text-xs text-brown-light underline font-body">
+            Log Out
+          </button>
+        </div>
       </div>
 
       <Logo size={80} />
@@ -334,21 +351,49 @@ export function WaiterFeedbackForm({
         {step === 4 && (
           <>
             <p className="text-center text-brown font-heading text-lg">Who Served You?</p>
-            <p className="text-center text-brown-light text-xs font-body -mt-3">Optional — helps us recognize great staff</p>
-            <select
-              value={servedBy}
-              onChange={(e) => setServedBy(e.target.value)}
-              className="w-full rounded-full border border-beige px-4 py-3 font-body text-brown bg-cream focus:outline-none focus:border-orange"
-            >
-              <option value="">Not sure / prefer not to say</option>
+            <p className="text-center text-brown-light text-xs font-body -mt-3">
+              Optional — select everyone who helped (you can pick more than one)
+            </p>
+            <div className="flex flex-col gap-4 max-h-80 overflow-y-auto pr-1">
               {roster.map((group) => (
-                <optgroup key={group.group} label={group.group}>
-                  {group.names.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </optgroup>
+                <div key={group.group}>
+                  <p className="text-xs font-semibold text-orange font-body mb-1.5 uppercase tracking-wide">
+                    {group.group}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {group.names.map((name) => {
+                      const checked = servedBy.includes(name)
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => toggleServedBy(name)}
+                          className={`flex items-center gap-2.5 text-left px-4 py-2.5 rounded-2xl border font-body text-sm transition ${
+                            checked
+                              ? 'bg-orange text-cream border-orange'
+                              : 'bg-beige-light text-brown border-beige hover:bg-beige'
+                          }`}
+                        >
+                          <span
+                            className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border-2 ${
+                              checked ? 'bg-cream border-cream' : 'border-brown-light'
+                            }`}
+                          >
+                            {checked && <span className="w-2 h-2 bg-orange rounded-sm" />}
+                          </span>
+                          {name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               ))}
-            </select>
+            </div>
+            {servedBy.length > 0 && (
+              <p className="text-xs text-brown-light font-body text-center">
+                Selected: {servedBy.join(', ')}
+              </p>
+            )}
           </>
         )}
 
