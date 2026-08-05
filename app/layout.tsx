@@ -16,7 +16,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Ekwena Feedback",
+  title: "F&B Guest Feedback",
   description: "Guest feedback for Hunters Paradise Cottages & Tuuti",
   manifest: "/manifest.json",
   icons: {
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Ekwena Feedback",
+    title: "F&B Guest Feedback",
   },
 };
 

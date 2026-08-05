@@ -110,7 +110,7 @@ function downloadCSV(rows: Stats['guestList']) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'ekwena-guest-contacts.csv'
+  a.download = 'fb-guest-feedback-contacts.csv'
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -378,7 +378,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(8)
         doc.setTextColor(ORANGE)
-        doc.text('EKWENA FEEDBACK REPORT', margin, margin - 26)
+        doc.text('F&B GUEST FEEDBACK REPORT', margin, margin - 26)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(CAPTION)
         doc.text(`Page ${pageNum} of ${pageCount}`, pageWidth - margin, pageHeight - 24, { align: 'right' })
@@ -399,7 +399,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(24)
       doc.setTextColor(BROWN)
-      doc.text('Ekwena Feedback Report', pageWidth / 2, 232, { align: 'center' })
+      doc.text('F&B Guest Feedback Report', pageWidth / 2, 232, { align: 'center' })
 
       doc.setDrawColor(ORANGE)
       doc.setLineWidth(1.5)
@@ -735,7 +735,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         drawPageChrome(i - 1, pageCount - 1)
       }
 
-      doc.save(`ekwena-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.save(`fb-guest-feedback-report-${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch (err) {
       console.error('Report generation failed', err)
       const message = err instanceof Error ? err.message : String(err)
@@ -771,7 +771,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
           <div className="flex items-center gap-3">
             <Logo size={56} />
             <div>
-              <h1 className="text-xl font-heading text-brown">Ekwena Dashboard</h1>
+              <h1 className="text-xl font-heading text-brown">F&B Guest Feedback Dashboard</h1>
               <p className="text-xs text-brown-light font-body">Welcome, {managerName}</p>
             </div>
           </div>

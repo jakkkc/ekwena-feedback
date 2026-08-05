@@ -1,6 +1,6 @@
 {
-  "name": "Ekwena Feedback",
-  "short_name": "Ekwena Feedback",
+  "name": "F&B Guest Feedback",
+  "short_name": "F&B Guest Feedback",
   "description": "Guest feedback for Hunters Paradise Cottages & Tuuti",
   "start_url": "/login",
   "scope": "/",
