@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   Star, MessageSquare, Users2, TrendingUp, LogOut, KeyRound, ThumbsUp,
-  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown, QrCode, Sparkles,
+  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown, QrCode, List, Sparkles,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
@@ -844,8 +844,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </button>
             )}
             <a
+              href="/dashboard/feedback"
+              className="ml-auto flex items-center gap-1.5 bg-cream border border-brown/30 text-brown px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-beige-light transition"
+            >
+              <List size={16} /> All Feedback
+            </a>
+            <a
               href="/dashboard/qr"
-              className="ml-auto flex items-center gap-1.5 bg-orange text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-orange-light transition"
+              className="flex items-center gap-1.5 bg-orange text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-orange-light transition"
             >
               <QrCode size={16} /> QR Codes
             </a>
