@@ -22,6 +22,9 @@ type FeedbackRow = {
   guest_name: string | null
   guest_phone: string | null
   created_at: string
+  resolved_at: string | null
+  resolved_by: string | null
+  resolution_note: string | null
 }
 
 function average(nums: number[]) {
@@ -295,7 +298,7 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.count - a.count)
 
   // --- Needs attention (any low individual rating or low NPS) ---
-  const needsAttention = filtered
+  const flaggedRows = filtered
     .filter((f) => {
       const coreLow = [f.food_rating, f.service_rating, f.ambiance_rating].some((r) => r <= 2)
       const optionalLow = [f.hostess_rating, f.cleanliness_rating, f.value_rating, f.wait_time_rating].some(
@@ -304,8 +307,7 @@ export async function GET(req: NextRequest) {
       const npsLow = f.nps_score != null && f.nps_score <= 6
       return coreLow || optionalLow || npsLow
     })
-    .slice(0, 20)
-    .map((f) => ({
+  const toAttentionItem = (f: FeedbackRow) => ({
       id: f.id,
       branch: f.branch,
       outlet: f.outlet,
@@ -323,7 +325,19 @@ export async function GET(req: NextRequest) {
       guestName: f.guest_name,
       guestPhone: f.guest_phone,
       createdAt: f.created_at,
-    }))
+      resolvedAt: f.resolved_at,
+      resolvedBy: f.resolved_by,
+      resolutionNote: f.resolution_note,
+    })
+  const needsAttention = flaggedRows
+    .filter((f) => !f.resolved_at)
+    .slice(0, 20)
+    .map(toAttentionItem)
+  const resolvedAttention = flaggedRows
+    .filter((f) => f.resolved_at)
+    .sort((a, b) => (b.resolved_at || '').localeCompare(a.resolved_at || ''))
+    .slice(0, 20)
+    .map(toAttentionItem)
 
   // --- Guest contact list + repeat guest detection ---
   const guestRows = filtered.filter((f) => f.guest_name || f.guest_phone)
@@ -359,6 +373,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     bestFeedback,
+    resolvedAttention,
     csat,
     npsTrend,
     grandAverageOverall,

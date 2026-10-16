@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
+import { ResolveButton, ResolvedList, type ResolvedItem } from './ResolveControls'
 
 const BRANCH_NAMES: Record<string, string> = {
   cottages: 'Cottages',
@@ -74,6 +75,7 @@ type Stats = {
     comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
   }[]
+  resolvedAttention: ResolvedItem[]
   guestList: { name: string | null; phone: string | null; branch: string; outlet: string | null; createdAt: string; isRepeat: boolean }[]
   repeatGuestCount: number
 }
@@ -1280,12 +1282,22 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                           {n.guestName && <span>— {n.guestName}</span>}
                           {n.guestPhone && <span>{n.guestPhone}</span>}
                         </div>
+                        <ResolveButton id={n.id} onDone={loadStats} />
                       </div>
                     )
                   })}
                 </div>
               )}
             </div>
+
+            {(stats.resolvedAttention || []).length > 0 && (
+              <ResolvedList
+                items={stats.resolvedAttention}
+                branchNames={BRANCH_NAMES}
+                outletNames={OUTLET_NAMES}
+                onDone={loadStats}
+              />
+            )}
 
             <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4">Recent Comments</h2>
