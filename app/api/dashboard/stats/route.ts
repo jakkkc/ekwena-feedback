@@ -264,8 +264,17 @@ export async function GET(req: NextRequest) {
   const staffGroups: Record<string, FeedbackRow[]> = {}
   filtered.forEach((f) => {
     if (!f.served_by) return
-    if (!staffGroups[f.served_by]) staffGroups[f.served_by] = []
-    staffGroups[f.served_by].push(f)
+    // A guest can name several staff: credit each person once for this submission.
+    const names = new Set(
+      f.served_by
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean)
+    )
+    names.forEach((name) => {
+      if (!staffGroups[name]) staffGroups[name] = []
+      staffGroups[name].push(f)
+    })
   })
   const staffLeaderboard = Object.entries(staffGroups)
     .map(([name, rows]) => ({
