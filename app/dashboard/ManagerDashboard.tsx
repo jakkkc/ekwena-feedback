@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   Star, MessageSquare, Users2, TrendingUp, LogOut, KeyRound, ThumbsUp,
-  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown, Sparkles,
+  Compass, Award, AlertTriangle, Download, Activity, Smile, FileDown, QrCode, Sparkles,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
@@ -841,10 +841,16 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 Clear dates
               </button>
             )}
+            <a
+              href="/dashboard/qr"
+              className="ml-auto flex items-center gap-1.5 bg-orange text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-orange-light transition"
+            >
+              <QrCode size={16} /> QR Codes
+            </a>
             <button
               onClick={handleDownloadReport}
               disabled={generatingReport || loading || !stats}
-              className="ml-auto flex items-center gap-1.5 bg-brown text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-brown-light transition disabled:opacity-50"
+              className="flex items-center gap-1.5 bg-brown text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-brown-light transition disabled:opacity-50"
             >
               <FileDown size={16} /> {generatingReport ? 'Generating Report...' : 'Download Report (PDF)'}
             </button>
