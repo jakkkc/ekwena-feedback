@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
+import QRCode from 'qrcode'
+import { GOOGLE_REVIEW_LINKS, isBranch } from '@/lib/venues'
 
 function StarRating({
   label,
@@ -50,13 +52,23 @@ export function WaiterFeedbackForm({
   branchName,
   outletName,
   collectedByName,
+  branchKey,
 }: {
   branchName: string
   outletName: string
   collectedByName: string
+  branchKey: string | null
 }) {
   const TOTAL_STEPS = 5
   const [phase, setPhase] = useState<'form' | 'thankyou'>('form')
+  const reviewLink = branchKey && isBranch(branchKey) ? GOOGLE_REVIEW_LINKS[branchKey] : null
+  const [reviewQr, setReviewQr] = useState('')
+  useEffect(() => {
+    if (!reviewLink) return
+    QRCode.toDataURL(reviewLink, { margin: 1, width: 300, color: { dark: '#3E2723', light: '#FFFFFF' } })
+      .then(setReviewQr)
+      .catch(() => setReviewQr(''))
+  }, [reviewLink])
   const [step, setStep] = useState(1)
   const [roster, setRoster] = useState<RosterGroup[]>([])
 
@@ -219,6 +231,28 @@ export function WaiterFeedbackForm({
         <p className="text-brown-light max-w-sm">
           We appreciate your feedback and hope you enjoyed your time at Ekwena.
         </p>
+        {reviewLink && (
+          <div className="w-full max-w-sm bg-cream rounded-3xl p-5 shadow-sm flex flex-col items-center gap-3">
+            <p className="text-brown font-body text-sm">
+              If you have a moment, we would be grateful if you shared your experience on Google. It helps other guests find us.
+            </p>
+            <a
+              href={reviewLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-orange text-cream px-6 py-3 rounded-full font-body font-semibold hover:bg-orange-light transition inline-block"
+            >
+              Leave us a Google Review
+            </a>
+            {reviewQr && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={reviewQr} alt="QR code to leave a Google review" className="w-36 h-36 rounded-xl bg-white" />
+                <p className="text-xs text-brown-light font-body">Or scan with your phone</p>
+              </>
+            )}
+          </div>
+        )}
         <button
           onClick={resetForm}
           className="bg-orange text-cream px-8 py-3 rounded-full font-body font-semibold hover:bg-orange-light transition"
