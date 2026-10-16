@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     comment,
     guest_name,
     guest_phone,
+    submission_id,
   } = body
 
   if (!bill_number || !/^\d+$/.test(bill_number)) {
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Please select how you heard about us' }, { status: 400 })
   }
 
+  const submissionId =
+    typeof submission_id === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(submission_id) ? submission_id : null
+
   const supabase = createServiceClient()
   const { error } = await supabase.from('feedback').insert({
     bill_number,
@@ -81,10 +85,20 @@ export async function POST(req: NextRequest) {
     comment: comment || null,
     guest_name: guest_name || null,
     guest_phone: guest_phone || null,
+    submission_id: submissionId,
   })
 
   if (error) {
     if (error.code === '23505') {
+      // A retry of something we already saved: treat as success, not a duplicate.
+      if (submissionId) {
+        const { data: existing } = await supabase
+          .from('feedback')
+          .select('id')
+          .eq('submission_id', submissionId)
+          .maybeSingle()
+        if (existing) return NextResponse.json({ success: true, duplicate: true })
+      }
       return NextResponse.json(
         { error: 'This bill number has already been used. Please check the receipt.' },
         { status: 409 }

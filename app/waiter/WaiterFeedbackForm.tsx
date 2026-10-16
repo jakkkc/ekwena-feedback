@@ -6,6 +6,8 @@ import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import QRCode from 'qrcode'
 import { GOOGLE_REVIEW_LINKS, isBranch } from '@/lib/venues'
+import { OfflineQueueBar } from './OfflineQueueBar'
+import { hasQueuedBill, loadRosterCache, saveRosterCache, submitOrQueue } from '@/lib/offlineQueue'
 
 function StarRating({
   label,
@@ -96,12 +98,18 @@ export function WaiterFeedbackForm({
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
+  const scope = [branchName, outletName, collectedByName].join('|')
+  const [queuedNotice, setQueuedNotice] = useState(false)
 
   useEffect(() => {
     fetch('/api/roster')
       .then((res) => res.json())
-      .then((data) => setRoster(data.roster || []))
-      .catch(() => setRoster([]))
+      .then((data) => {
+        const list = data.roster || []
+        setRoster(list)
+        if (list.length > 0) saveRosterCache(list)
+      })
+      .catch(() => setRoster(loadRosterCache() as RosterGroup[]))
   }, [])
 
   function resetForm() {
@@ -113,6 +121,7 @@ export function WaiterFeedbackForm({
     setServedBy([])
     setComment(''); setGuestName(''); setGuestContact('')
     setError('')
+    setQueuedNotice(false)
     setPhase('form')
   }
 
@@ -134,6 +143,10 @@ export function WaiterFeedbackForm({
         setError('Please enter a valid bill number (numbers only)')
         return
       }
+      if (hasQueuedBill(scope, billNumber)) {
+        setError('A feedback with this bill number is already waiting to send on this tablet.')
+        return
+      }
       setCheckingBill(true)
       setError('')
       try {
@@ -149,9 +162,8 @@ export function WaiterFeedbackForm({
           return
         }
       } catch {
+        // Offline: let the guest continue. The bill number is checked when it sends.
         setCheckingBill(false)
-        setError('Could not verify bill number. Check your connection and try again.')
-        return
       }
       setError('')
       setStep(2)
@@ -184,10 +196,7 @@ export function WaiterFeedbackForm({
     setSubmitting(true)
     setError('')
 
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const result = await submitOrQueue(scope, {
         bill_number: billNumber,
         food_rating: foodQuality,
         service_rating: service,
@@ -203,18 +212,17 @@ export function WaiterFeedbackForm({
         comment,
         guest_name: guestName,
         guest_phone: guestContact,
-      }),
-    })
+      })
 
     setSubmitting(false)
 
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error || 'Something went wrong. Please try again.')
-      if (res.status === 409) setStep(1)
+    if (result.result === 'conflict') {
+      setError(result.error || 'Something went wrong. Please try again.')
+      setStep(1)
       return
     }
 
+    setQueuedNotice(result.result === 'queued')
     setPhase('thankyou')
   }
 
@@ -231,6 +239,11 @@ export function WaiterFeedbackForm({
         <p className="text-brown-light max-w-sm">
           We appreciate your feedback and hope you enjoyed your time at Ekwena.
         </p>
+        {queuedNotice && (
+          <p className="text-xs text-brown-light font-body max-w-sm bg-orange/10 rounded-2xl px-4 py-2">
+            No connection right now. This feedback is saved on the tablet and will send automatically.
+          </p>
+        )}
         {reviewLink && (
           <div className="w-full max-w-sm bg-cream rounded-3xl p-5 shadow-sm flex flex-col items-center gap-3">
             <p className="text-brown font-body text-sm">
@@ -279,6 +292,8 @@ export function WaiterFeedbackForm({
           </button>
         </div>
       </div>
+
+      <OfflineQueueBar scope={scope} />
 
       <Logo size={80} />
 
