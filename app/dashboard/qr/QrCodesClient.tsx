@@ -34,7 +34,7 @@ export function QrCodesClient() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const base = window.location.origin
+    const base = (process.env.NEXT_PUBLIC_SITE_URL || 'https://ekwena-feedback.vercel.app').replace(/\/$/, '')
     setOrigin(base)
     async function build() {
       const list: Card[] = []
