@@ -100,7 +100,7 @@ export function QrCodesClient() {
     setError('')
     try {
       const { jsPDF } = await import('jspdf')
-      const doc = new jsPDF({ unit: 'mm', format: 'a5' })
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
       const logo = await loadLogo()
       const W = doc.internal.pageSize.getWidth()
       const H = doc.internal.pageSize.getHeight()
@@ -110,31 +110,42 @@ export function QrCodesClient() {
         doc.setFillColor(255, 255, 255)
         doc.rect(0, 0, W, H, 'F')
         doc.setDrawColor(191, 107, 52)
-        doc.setLineWidth(0.8)
-        doc.roundedRect(8, 8, W - 16, H - 16, 4, 4, 'S')
+        doc.setLineWidth(1)
+        doc.roundedRect(10, 10, W - 20, H - 20, 5, 5, 'S')
+
+        // Lay everything out as one block, centred on the page
+        const logoSize = 40
+        const qrSize = 110
+        const blockHeight = logoSize + 10 + 8 + 9 + 10 + qrSize + 14
+        let y = (H - blockHeight) / 2
 
         if (logo) {
           try {
-            doc.addImage(logo, 'PNG', W / 2 - 15, 16, 30, 30)
+            doc.addImage(logo, 'PNG', W / 2 - logoSize / 2, y, logoSize, logoSize)
           } catch {}
         }
+        y += logoSize + 10
 
         doc.setTextColor(62, 39, 35)
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(20)
-        doc.text(card.title, W / 2, 58, { align: 'center' })
+        doc.setFontSize(26)
+        y += 8
+        doc.text(card.title, W / 2, y, { align: 'center' })
+
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(12)
+        doc.setFontSize(15)
         doc.setTextColor(93, 64, 55)
-        doc.text(card.subtitle, W / 2, 66, { align: 'center' })
+        y += 9
+        doc.text(card.subtitle, W / 2, y, { align: 'center' })
 
-        const size = 85
-        doc.addImage(card.dataUrl, 'PNG', W / 2 - size / 2, 76, size, size)
+        y += 10
+        doc.addImage(card.dataUrl, 'PNG', W / 2 - qrSize / 2, y, qrSize, qrSize)
 
+        y += qrSize + 14
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
+        doc.setFontSize(17)
         doc.setTextColor(191, 107, 52)
-        doc.text(card.caption, W / 2, 175, { align: 'center' })
+        doc.text(card.caption, W / 2, y, { align: 'center' })
       })
 
       doc.save('F&B-Guest-QR-Codes.pdf')
