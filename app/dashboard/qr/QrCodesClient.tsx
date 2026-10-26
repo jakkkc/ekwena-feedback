@@ -105,47 +105,71 @@ export function QrCodesClient() {
       const W = doc.internal.pageSize.getWidth()
       const H = doc.internal.pageSize.getHeight()
 
-      cards.forEach((card, i) => {
-        if (i > 0) doc.addPage()
+      // Page 1: Cottages, page 2: Tuuti, page 3: Google reviews. Four A6 cards per A4 page.
+      const pages: Card[][] = [
+        ...BRANCHES.map((b) => cards.filter((c) => c.kind === 'feedback' && c.branch === b)),
+        cards.filter((c) => c.kind === 'google'),
+      ].filter((g) => g.length > 0)
+
+      const cellW = W / 2
+      const cellH = H / 2
+
+      pages.forEach((group, pageIndex) => {
+        if (pageIndex > 0) doc.addPage()
         doc.setFillColor(255, 255, 255)
         doc.rect(0, 0, W, H, 'F')
-        doc.setDrawColor(191, 107, 52)
-        doc.setLineWidth(1)
-        doc.roundedRect(10, 10, W - 20, H - 20, 5, 5, 'S')
 
-        // Lay everything out as one block, centred on the page
-        const logoSize = 40
-        const qrSize = 110
-        const blockHeight = logoSize + 10 + 8 + 9 + 10 + qrSize + 14
-        let y = (H - blockHeight) / 2
+        // Dashed cutting guides between the four A6 cards
+        doc.setDrawColor(190, 190, 190)
+        doc.setLineWidth(0.2)
+        doc.setLineDashPattern([2, 2], 0)
+        doc.line(cellW, 0, cellW, H)
+        doc.line(0, cellH, W, cellH)
+        doc.setLineDashPattern([], 0)
 
-        if (logo) {
-          try {
-            doc.addImage(logo, 'PNG', W / 2 - logoSize / 2, y, logoSize, logoSize)
-          } catch {}
-        }
-        y += logoSize + 10
+        group.forEach((card, idx) => {
+          const cx = (idx % 2) * cellW
+          const cy = Math.floor(idx / 2) * cellH
+          const mid = cx + cellW / 2
 
-        doc.setTextColor(62, 39, 35)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(26)
-        y += 8
-        doc.text(card.title, W / 2, y, { align: 'center' })
+          doc.setDrawColor(191, 107, 52)
+          doc.setLineWidth(0.5)
+          doc.roundedRect(cx + 5, cy + 5, cellW - 10, cellH - 10, 3, 3, 'S')
 
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(15)
-        doc.setTextColor(93, 64, 55)
-        y += 9
-        doc.text(card.subtitle, W / 2, y, { align: 'center' })
+          // Everything in the card is one block, centred in its A6 cell
+          const logoSize = 18
+          const qrSize = 62
+          const blockHeight = logoSize + 4 + 6 + 6 + 5 + qrSize + 8
+          let y = cy + (cellH - blockHeight) / 2
 
-        y += 10
-        doc.addImage(card.dataUrl, 'PNG', W / 2 - qrSize / 2, y, qrSize, qrSize)
+          if (logo) {
+            try {
+              doc.addImage(logo, 'PNG', mid - logoSize / 2, y, logoSize, logoSize)
+            } catch {}
+          }
+          y += logoSize + 4
 
-        y += qrSize + 14
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(17)
-        doc.setTextColor(191, 107, 52)
-        doc.text(card.caption, W / 2, y, { align: 'center' })
+          doc.setTextColor(62, 39, 35)
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(14)
+          y += 6
+          doc.text(card.title, mid, y, { align: 'center' })
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9)
+          doc.setTextColor(93, 64, 55)
+          y += 6
+          doc.text(card.subtitle, mid, y, { align: 'center' })
+
+          y += 5
+          doc.addImage(card.dataUrl, 'PNG', mid - qrSize / 2, y, qrSize, qrSize)
+
+          y += qrSize + 8
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(10)
+          doc.setTextColor(191, 107, 52)
+          doc.text(card.caption, mid, y, { align: 'center' })
+        })
       })
 
       doc.save('F&B-Guest-QR-Codes.pdf')
