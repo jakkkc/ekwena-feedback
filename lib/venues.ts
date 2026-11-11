@@ -33,3 +33,10 @@ export function isBranch(value: unknown): value is Branch {
 export function isOutlet(value: unknown): value is Outlet {
   return typeof value === 'string' && (OUTLETS as readonly string[]).includes(value)
 }
+
+// Outlets that ask for a group name instead of a bill number.
+export const GROUP_NAME_OUTLETS: readonly string[] = ['eswara_conference_hall']
+
+export function usesGroupName(outlet: string | null | undefined) {
+  return !!outlet && GROUP_NAME_OUTLETS.includes(outlet)
+}
