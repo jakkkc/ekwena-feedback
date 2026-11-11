@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usesGroupName } from '@/lib/venues'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { GOOGLE_REVIEW_LINKS, type Branch } from '@/lib/venues'
@@ -68,6 +69,18 @@ export function PublicFeedbackForm({
   const [roster, setRoster] = useState<RosterGroup[]>([])
 
   const [billNumber, setBillNumber] = useState('')
+  const grouped = usesGroupName(outlet)
+  const [groupName, setGroupName] = useState('')
+  const [groupOptions, setGroupOptions] = useState<string[]>([])
+  const [groupsLoaded, setGroupsLoaded] = useState(false)
+  useEffect(() => {
+    if (!grouped) return
+    fetch('/api/public/groups')
+      .then((r) => r.json())
+      .then((d) => setGroupOptions(d.groups || []))
+      .catch(() => setGroupOptions([]))
+      .finally(() => setGroupsLoaded(true))
+  }, [grouped])
   const [checkingBill, setCheckingBill] = useState(false)
 
   const [hostess, setHostess] = useState(0)
@@ -106,6 +119,15 @@ export function PublicFeedbackForm({
   }
 
   async function goNext() {
+    if (step === 1 && grouped) {
+      if (!groupName) {
+        setError('Please select your group')
+        return
+      }
+      setError('')
+      setStep(2)
+      return
+    }
     if (step === 1) {
       if (!/^\d{1,20}$/.test(billNumber)) {
         setError('Please enter the bill number from your receipt (numbers only)')
@@ -169,7 +191,8 @@ export function PublicFeedbackForm({
           branch,
           outlet,
           website,
-          bill_number: billNumber,
+          bill_number: grouped ? undefined : billNumber,
+          group_name: grouped ? groupName : undefined,
           food_rating: foodQuality,
           service_rating: service,
           ambiance_rating: generalAmbiance,
@@ -261,7 +284,29 @@ export function PublicFeedbackForm({
           className="absolute -left-[9999px] w-px h-px opacity-0"
         />
 
-        {step === 1 && (
+        {step === 1 && grouped && (
+          <>
+            <p className="text-center text-brown font-heading text-lg">Your Group</p>
+            <p className="text-center text-brown-light text-xs font-body -mt-3">
+              Select the group or organisation you are attending with
+            </p>
+            <select
+              value={groupName}
+              onChange={(e) => { setGroupName(e.target.value); setError('') }}
+              className="w-full text-center text-xl rounded-2xl border border-beige px-4 py-4 font-heading text-brown bg-white focus:outline-none focus:border-orange"
+            >
+              <option value="">{groupsLoaded ? 'Select your group' : 'Loading...'}</option>
+              {groupOptions.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            {groupsLoaded && groupOptions.length === 0 && (
+              <p className="text-center text-brown-light text-xs">No groups are open right now. Please ask the hotel staff.</p>
+            )}
+          </>
+        )}
+
+        {step === 1 && !grouped && (
           <>
             <p className="text-center text-brown font-heading text-lg">Bill Number</p>
             <p className="text-center text-brown-light text-xs font-body -mt-3">

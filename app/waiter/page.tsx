@@ -24,6 +24,7 @@ export default async function WaiterPage() {
       outletName={outletName}
       collectedByName={session?.collectedBy || ''}
       branchKey={session?.branch || null}
+      outletKey={session?.outlet || null}
     />
   )
 }

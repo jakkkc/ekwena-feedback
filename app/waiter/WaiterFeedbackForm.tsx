@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usesGroupName } from '@/lib/venues'
 import { useRouter } from 'next/navigation'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
@@ -55,11 +56,13 @@ export function WaiterFeedbackForm({
   outletName,
   collectedByName,
   branchKey,
+  outletKey,
 }: {
   branchName: string
   outletName: string
   collectedByName: string
   branchKey: string | null
+  outletKey: string | null
 }) {
   const TOTAL_STEPS = 5
   const [phase, setPhase] = useState<'form' | 'thankyou'>('form')
@@ -75,6 +78,23 @@ export function WaiterFeedbackForm({
   const [roster, setRoster] = useState<RosterGroup[]>([])
 
   const [billNumber, setBillNumber] = useState('')
+  const grouped = usesGroupName(outletKey)
+  const [groupName, setGroupName] = useState('')
+  const [groupOptions, setGroupOptions] = useState<string[]>([])
+  useEffect(() => {
+    if (!grouped) return
+    const KEY = 'fb_groups_cache_v1'
+    fetch('/api/public/groups')
+      .then((r) => r.json())
+      .then((d) => {
+        const list: string[] = d.groups || []
+        setGroupOptions(list)
+        try { localStorage.setItem(KEY, JSON.stringify(list)) } catch {}
+      })
+      .catch(() => {
+        try { setGroupOptions(JSON.parse(localStorage.getItem(KEY) || '[]')) } catch {}
+      })
+  }, [grouped])
   const [checkingBill, setCheckingBill] = useState(false)
 
   const [hostess, setHostess] = useState(0)
@@ -115,6 +135,7 @@ export function WaiterFeedbackForm({
   function resetForm() {
     setStep(1)
     setBillNumber('')
+    setGroupName('')
     setHostess(0); setBeverage(0); setFoodQuality(0); setMenuVariety(0)
     setService(0); setGeneralAmbiance(0); setAmbianceCleanliness(0)
     setNps(null); setHowHeard(''); setHowHeardOther('')
@@ -138,6 +159,15 @@ export function WaiterFeedbackForm({
   }
 
   async function goNext() {
+    if (step === 1 && grouped) {
+      if (!groupName) {
+        setError('Please select the guest group')
+        return
+      }
+      setError('')
+      setStep(2)
+      return
+    }
     if (step === 1) {
       if (!/^\d+$/.test(billNumber)) {
         setError('Please enter a valid bill number (numbers only)')
@@ -197,7 +227,8 @@ export function WaiterFeedbackForm({
     setError('')
 
     const result = await submitOrQueue(scope, {
-        bill_number: billNumber,
+        bill_number: grouped ? undefined : billNumber,
+        group_name: grouped ? groupName : undefined,
         food_rating: foodQuality,
         service_rating: service,
         ambiance_rating: generalAmbiance,
@@ -310,7 +341,26 @@ export function WaiterFeedbackForm({
       </div>
 
       <div className="w-full max-w-md flex flex-col gap-5 bg-cream rounded-3xl p-6 shadow-sm">
-        {step === 1 && (
+        {step === 1 && grouped && (
+          <>
+            <p className="text-center text-brown font-heading text-lg">Group Name</p>
+            <p className="text-center text-brown-light text-xs font-body -mt-3">
+              Select the group this guest is attending with
+            </p>
+            <select
+              value={groupName}
+              onChange={(e) => { setGroupName(e.target.value); setError('') }}
+              className="w-full text-center text-xl rounded-2xl border border-beige px-4 py-4 font-heading text-brown bg-white focus:outline-none focus:border-orange"
+            >
+              <option value="">Select group</option>
+              {groupOptions.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {step === 1 && !grouped && (
           <>
             <p className="text-center text-brown font-heading text-lg">Bill Number</p>
             <p className="text-center text-brown-light text-xs font-body -mt-3">
