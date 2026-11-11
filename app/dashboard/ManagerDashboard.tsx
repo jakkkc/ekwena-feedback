@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
+import { EventGroupsManager } from './EventGroupsManager'
 import { ResolveButton, ResolvedList, type ResolvedItem } from './ResolveControls'
 
 const BRANCH_NAMES: Record<string, string> = {
@@ -1375,6 +1376,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         )}
 
         <RosterManager />
+        <EventGroupsManager />
 
         <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
           <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
