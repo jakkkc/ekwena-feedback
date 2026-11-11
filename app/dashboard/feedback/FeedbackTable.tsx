@@ -11,6 +11,7 @@ type Row = {
   outlet: string | null
   source: string | null
   bill_number: string | null
+  group_name: string | null
   food_rating: number
   service_rating: number
   ambiance_rating: number
@@ -91,6 +92,7 @@ export function FeedbackTable() {
   const [search, setSearch] = useState('')
   const [branch, setBranch] = useState('all')
   const [outlet, setOutlet] = useState('all')
+  const [group, setGroup] = useState('all')
   const [source, setSource] = useState('all')
   const [status, setStatus] = useState('all')
   const [from, setFrom] = useState('')
@@ -129,13 +131,14 @@ export function FeedbackTable() {
     const list = rows.filter((r) => {
       if (branch !== 'all' && r.branch !== branch) return false
       if (outlet !== 'all' && r.outlet !== outlet) return false
+      if (group !== 'all' && r.group_name !== group) return false
       if (source !== 'all' && (r.source || 'tablet') !== source) return false
       if (status !== 'all' && statusOf(r) !== status) return false
       const d = new Date(r.created_at)
       if (fromD && d < fromD) return false
       if (toD && d > toD) return false
       if (q) {
-        const hay = [r.guest_name, r.guest_phone, r.bill_number, r.comment, r.served_by, r.collected_by, r.resolution_note]
+        const hay = [r.guest_name, r.guest_phone, r.bill_number, r.group_name, r.comment, r.served_by, r.collected_by, r.resolution_note]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -156,7 +159,7 @@ export function FeedbackTable() {
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir
     })
     return list
-  }, [rows, search, branch, outlet, source, status, from, to, sortKey, sortDir])
+  }, [rows, search, branch, outlet, group, source, status, from, to, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -184,7 +187,7 @@ export function FeedbackTable() {
 
   function exportCsv() {
     const header = [
-      'Date', 'Bill Number', 'Branch', 'Outlet', 'Source', 'Food', 'Service', 'Ambiance', 'Hostess',
+      'Date', 'Bill Number', 'Group', 'Branch', 'Outlet', 'Source', 'Food', 'Service', 'Ambiance', 'Hostess',
       'Ambiance & Cleanliness', 'Menu Variety', 'Beverage', 'Overall', 'NPS', 'How Heard', 'Served By',
       'Collected By', 'Guest Name', 'Phone/Email', 'Comment', 'Status', 'Resolved By', 'Resolution Note',
     ]
@@ -195,6 +198,7 @@ export function FeedbackTable() {
         [
           fmtDate(r.created_at),
           r.bill_number,
+          r.group_name,
           BRANCH_LABELS[r.branch as keyof typeof BRANCH_LABELS] || r.branch,
           r.outlet ? OUTLET_LABELS[r.outlet as keyof typeof OUTLET_LABELS] || r.outlet : '',
           (r.source || 'tablet') === 'qr' ? 'Guest QR' : 'Tablet',
@@ -298,6 +302,12 @@ export function FeedbackTable() {
                 <option key={b} value={b}>{BRANCH_LABELS[b]}</option>
               ))}
             </select>
+            <select value={group} onChange={(e) => { setGroup(e.target.value); setPage(1) }} className={selectCls}>
+              <option value="all">All groups</option>
+              {Array.from(new Set(rows.map((r) => r.group_name).filter((g): g is string => !!g))).sort().map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
             <select value={outlet} onChange={(e) => { setOutlet(e.target.value); setPage(1) }} className={selectCls}>
               <option value="all">All outlets</option>
               {OUTLETS.map((o) => (
@@ -317,10 +327,10 @@ export function FeedbackTable() {
             </select>
             <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} className={selectCls} aria-label="From date" />
             <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} className={selectCls} aria-label="To date" />
-            {(search || branch !== 'all' || outlet !== 'all' || source !== 'all' || status !== 'all' || from || to) && (
+            {(search || branch !== 'all' || outlet !== 'all' || group !== 'all' || source !== 'all' || status !== 'all' || from || to) && (
               <button
                 onClick={() => {
-                  setSearch(''); setBranch('all'); setOutlet('all'); setSource('all'); setStatus('all'); setFrom(''); setTo(''); setPage(1)
+                  setSearch(''); setBranch('all'); setOutlet('all'); setGroup('all'); setSource('all'); setStatus('all'); setFrom(''); setTo(''); setPage(1)
                 }}
                 className="text-xs text-brown-light underline font-body"
               >
@@ -337,7 +347,7 @@ export function FeedbackTable() {
             <thead>
               <tr className="text-left text-xs text-brown-light border-b border-beige">
                 <th className="p-3"><SortHead label="Date" k="date" /></th>
-                <th className="p-3"><SortHead label="Bill #" k="bill" /></th>
+                <th className="p-3"><SortHead label="Bill # / Group" k="bill" /></th>
                 <th className="p-3">Where</th>
                 <th className="p-3">Source</th>
                 <th className="p-3"><SortHead label="Overall" k="overall" /></th>
@@ -371,7 +381,7 @@ export function FeedbackTable() {
                       className="border-b border-beige/60 cursor-pointer hover:bg-beige-light/60"
                     >
                       <td className="p-3 whitespace-nowrap">{fmtDate(r.created_at)}</td>
-                      <td className="p-3">{r.bill_number || '-'}</td>
+                      <td className="p-3">{r.bill_number || r.group_name || '-'}</td>
                       <td className="p-3">
                         <span className="block">{r.outlet ? OUTLET_LABELS[r.outlet as keyof typeof OUTLET_LABELS] || r.outlet : '-'}</span>
                         <span className="block text-xs text-brown-light">{BRANCH_LABELS[r.branch as keyof typeof BRANCH_LABELS] || r.branch}</span>

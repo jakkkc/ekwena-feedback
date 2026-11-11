@@ -68,6 +68,7 @@ type Stats = {
     valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
     comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
+    groupName?: string | null
   }[]
   needsAttention: {
     id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
@@ -75,10 +76,13 @@ type Stats = {
     valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
     comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
+    groupName?: string | null
   }[]
   resolvedAttention: ResolvedItem[]
   guestList: { name: string | null; phone: string | null; branch: string; outlet: string | null; createdAt: string; isRepeat: boolean }[]
   repeatGuestCount: number
+  groupSummary: { name: string; responses: number; avgOverall: number; nps: number | null }[]
+  groupOptions: string[]
 }
 
 type StaffMember = { id: string; name: string; role: 'manager' | 'waiter'; branch: string | null }
@@ -121,6 +125,7 @@ function downloadCSV(rows: Stats['guestList']) {
 export function ManagerDashboard({ managerName }: { managerName: string }) {
   const [branchFilter, setBranchFilter] = useState<'all' | 'cottages' | 'tuuti'>('all')
   const [outletFilter, setOutletFilter] = useState('all')
+  const [groupFilter, setGroupFilter] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
@@ -144,12 +149,13 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   const loadStats = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({ branch: branchFilter, outlet: outletFilter })
+    if (groupFilter !== 'all') params.set('group', groupFilter)
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
     const res = await fetch(`/api/dashboard/stats?${params.toString()}`)
     if (res.ok) setStats(await res.json())
     setLoading(false)
-  }, [branchFilter, outletFilter, startDate, endDate])
+  }, [branchFilter, outletFilter, groupFilter, startDate, endDate])
 
   useEffect(() => {
     loadStats()
@@ -622,6 +628,24 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         addLine('No collection data yet.', { italic: true, color: CAPTION })
       }
 
+      // === GROUP SUMMARY ===
+      if ((stats.groupSummary || []).length > 0) {
+        ensureSpace(80)
+        addSectionHeader('Group Summary')
+        autoTable(doc, {
+          startY: y,
+          head: [['Group', 'Responses', 'Avg Rating', 'NPS']],
+          body: stats.groupSummary.map((g) => [g.name, g.responses, `${g.avgOverall}★`, g.nps ?? '-']),
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          styles: { font: 'helvetica', fontSize: 9, textColor: BROWN, cellPadding: 6 },
+          headStyles: { fillColor: BROWN, textColor: CREAM, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: BEIGE_LIGHT },
+        })
+        // @ts-expect-error - lastAutoTable is added to the doc instance by the plugin at runtime
+        y = doc.lastAutoTable.finalY + 20
+      }
+
       // === BEST FEEDBACK ===
       doc.addPage()
       y = margin
@@ -632,7 +656,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         stats.bestFeedback.slice(0, 15).forEach((n) => {
           const blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[] = [
             {
-              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
+              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}${n.groupName ? ' · ' + n.groupName : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
               bold: true,
               color: '#3E8B5C',
             },
@@ -662,7 +686,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
         stats.needsAttention.slice(0, 15).forEach((n) => {
           const blocks: { text: string; bold?: boolean; italic?: boolean; size?: number; color?: string }[] = [
             {
-              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
+              text: `${BRANCH_NAMES[n.branch] || n.branch}${n.outlet ? ' · ' + (OUTLET_NAMES[n.outlet] || n.outlet) : ''}${n.groupName ? ' · ' + n.groupName : ''}  —  ${new Date(n.createdAt).toLocaleDateString()}`,
               bold: true,
               color: ORANGE,
             },
@@ -821,6 +845,21 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </button>
             ))}
           </div>
+          {(stats?.groupOptions?.length ?? 0) > 0 && (
+            <div className="flex gap-2 items-center flex-wrap">
+              <label className="text-xs text-brown-light font-body">Group</label>
+              <select
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className="rounded-full border border-beige px-3 py-1.5 text-xs font-body text-brown bg-cream focus:outline-none focus:border-orange"
+              >
+                <option value="all">All groups</option>
+                {stats?.groupOptions.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-2 items-center flex-wrap">
             <label className="text-xs text-brown-light font-body">From</label>
             <input
@@ -1179,6 +1218,32 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </div>
             </div>
 
+            {(stats.groupSummary || []).length > 0 && (
+              <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
+                <h2 className="font-heading text-lg text-brown mb-4">Group Summary</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm font-body text-brown">
+                    <thead>
+                      <tr className="text-left text-xs text-brown-light">
+                        <th className="py-2">Group</th><th className="py-2">Responses</th>
+                        <th className="py-2">Avg Rating</th><th className="py-2">NPS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.groupSummary.map((g) => (
+                        <tr key={g.name} className="border-t border-beige">
+                          <td className="py-2 font-semibold">{g.name}</td>
+                          <td className="py-2">{g.responses}</td>
+                          <td className="py-2">{g.avgOverall}★</td>
+                          <td className="py-2">{g.nps ?? "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm border-2 border-green-600/40">
               <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                 <Sparkles size={18} className="text-green-600" /> Best Feedback
@@ -1200,6 +1265,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                           <span className="text-xs font-semibold text-green-700 font-body">
                             {BRANCH_NAMES[n.branch] || n.branch}
                             {n.outlet ? ` · ${OUTLET_NAMES[n.outlet] || n.outlet}` : ''}
+                            {n.groupName ? ` · ${n.groupName}` : ''}
                           </span>
                           <span className="text-xs text-brown-light font-body">
                             {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1252,6 +1318,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                           <span className="text-xs font-semibold text-orange font-body">
                             {BRANCH_NAMES[n.branch] || n.branch}
                             {n.outlet ? ` · ${OUTLET_NAMES[n.outlet] || n.outlet}` : ''}
+                            {n.groupName ? ` · ${n.groupName}` : ''}
                           </span>
                           <span className="text-xs text-brown-light font-body">
                             {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

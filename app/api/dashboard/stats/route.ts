@@ -21,6 +21,7 @@ type FeedbackRow = {
   comment: string | null
   guest_name: string | null
   guest_phone: string | null
+  group_name: string | null
   created_at: string
   resolved_at: string | null
   resolved_by: string | null
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
   const outletFilter = searchParams.get('outlet') || 'all'
   const startDate = searchParams.get('startDate') || ''
   const endDate = searchParams.get('endDate') || ''
+  const groupFilter = searchParams.get('group') || 'all'
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -92,7 +94,9 @@ export async function GET(req: NextRequest) {
   const matchesBranch = (f: FeedbackRow) => branchFilter === 'all' || f.branch === branchFilter
   const matchesOutlet = (f: FeedbackRow) => outletFilter === 'all' || f.outlet === outletFilter
 
-  const filtered = all.filter((f) => matchesBranch(f) && matchesOutlet(f) && matchesDate(f))
+  const matchesGroup = (f: FeedbackRow) => groupFilter === 'all' || f.group_name === groupFilter
+
+  const filtered = all.filter((f) => matchesBranch(f) && matchesOutlet(f) && matchesDate(f) && matchesGroup(f))
 
   // --- Core stats (fully filtered scope) ---
   const totalCount = filtered.length
@@ -243,6 +247,7 @@ export async function GET(req: NextRequest) {
       collectedBy: f.collected_by,
       guestName: f.guest_name,
       guestPhone: f.guest_phone,
+      groupName: f.group_name,
       createdAt: f.created_at,
     }))
 
@@ -324,6 +329,7 @@ export async function GET(req: NextRequest) {
       collectedBy: f.collected_by,
       guestName: f.guest_name,
       guestPhone: f.guest_phone,
+      groupName: f.group_name,
       createdAt: f.created_at,
       resolvedAt: f.resolved_at,
       resolvedBy: f.resolved_by,
@@ -371,9 +377,34 @@ export async function GET(req: NextRequest) {
     return { outlet, avg: average(rows.map(allCategoriesOverallOf)), count: rows.length }
   }).filter((o) => o.count > 0)
 
+  const groupMap: Record<string, FeedbackRow[]> = {}
+  filtered.forEach((f) => {
+    if (!f.group_name) return
+    if (!groupMap[f.group_name]) groupMap[f.group_name] = []
+    groupMap[f.group_name].push(f)
+  })
+  const groupSummary = Object.entries(groupMap)
+    .map(([name, rows]) => {
+      const npsRows = rows.filter((r) => r.nps_score != null)
+      const prom = npsRows.filter((r) => (r.nps_score as number) >= 9).length
+      const det = npsRows.filter((r) => (r.nps_score as number) <= 6).length
+      return {
+        name,
+        responses: rows.length,
+        avgOverall: average(rows.map(allCategoriesOverallOf)),
+        nps: npsRows.length > 0 ? Math.round(((prom - det) / npsRows.length) * 100) : null,
+      }
+    })
+    .sort((a, b) => b.responses - a.responses)
+  const groupOptions = Array.from(
+    new Set(all.map((f) => f.group_name).filter((g): g is string => !!g))
+  ).sort()
+
   return NextResponse.json({
     bestFeedback,
     resolvedAttention,
+    groupSummary,
+    groupOptions,
     csat,
     npsTrend,
     grandAverageOverall,
