@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
-import { isBranch, isOutlet } from '@/lib/venues'
+import { isBranch, isOutlet, usesGroupName } from '@/lib/venues'
 
 const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
 const RATE_LIMIT_MAX = 20
 const RATE_LIMIT_WINDOW_MINUTES = 10
+// A conference room shares one connection, so Eswara gets a higher limit.
+const GROUP_RATE_LIMIT_MAX = 200
 
 function isRating(value: unknown, min: number, max: number) {
   return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
@@ -54,7 +56,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid location' }, { status: 400 })
   }
 
-  if (typeof bill_number !== 'string' || !/^\d{1,20}$/.test(bill_number)) {
+  const grouped = usesGroupName(outlet)
+  if (!grouped && (typeof bill_number !== 'string' || !/^\d{1,20}$/.test(bill_number))) {
     return NextResponse.json({ error: 'A valid bill number (numbers only) is required' }, { status: 400 })
   }
 
@@ -82,6 +85,17 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const hash = clientHash(req)
 
+  let groupName: string | null = null
+  if (grouped) {
+    const wanted = cleanText(body.group_name, 100)
+    const { data: groups } = await supabase.from('event_groups').select('name').eq('active', true)
+    const match = (groups || []).find((g) => g.name.toLowerCase() === (wanted || '').toLowerCase())
+    if (!match) {
+      return NextResponse.json({ error: 'Please select your group' }, { status: 400 })
+    }
+    groupName = match.name
+  }
+
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString()
   const { count } = await supabase
     .from('feedback')
@@ -89,7 +103,7 @@ export async function POST(req: NextRequest) {
     .eq('client_hash', hash)
     .gte('created_at', since)
 
-  if ((count ?? 0) >= RATE_LIMIT_MAX) {
+  if ((count ?? 0) >= (grouped ? GROUP_RATE_LIMIT_MAX : RATE_LIMIT_MAX)) {
     return NextResponse.json(
       { error: 'Too many submissions from this connection. Please try again in a few minutes.' },
       { status: 429 }
@@ -97,7 +111,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase.from('feedback').insert({
-    bill_number,
+    bill_number: grouped ? null : bill_number,
+    group_name: groupName,
     branch,
     outlet,
     source: 'qr',
