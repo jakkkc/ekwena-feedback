@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/session'
+import { usesGroupName } from '@/lib/venues'
 
 const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
 
@@ -34,9 +35,12 @@ export async function POST(req: NextRequest) {
     guest_name,
     guest_phone,
     submission_id,
+    group_name,
   } = body
 
-  if (!bill_number || !/^\d+$/.test(bill_number)) {
+  const grouped = usesGroupName(session.outlet)
+
+  if (!grouped && (!bill_number || !/^\d+$/.test(bill_number))) {
     return NextResponse.json({ error: 'A valid bill number (numbers only) is required' }, { status: 400 })
   }
 
@@ -65,8 +69,21 @@ export async function POST(req: NextRequest) {
     typeof submission_id === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(submission_id) ? submission_id : null
 
   const supabase = createServiceClient()
+
+  let groupName: string | null = null
+  if (grouped) {
+    const wanted = typeof group_name === 'string' ? group_name.trim().toLowerCase() : ''
+    const { data: groups } = await supabase.from('event_groups').select('name').eq('active', true)
+    const match = (groups || []).find((g) => g.name.toLowerCase() === wanted)
+    if (!match) {
+      return NextResponse.json({ error: 'Please select a valid group' }, { status: 400 })
+    }
+    groupName = match.name
+  }
+
   const { error } = await supabase.from('feedback').insert({
-    bill_number,
+    bill_number: grouped ? null : bill_number,
+    group_name: groupName,
     branch: session.branch,
     outlet: session.outlet || null,
     collected_by: session.collectedBy || null,
