@@ -15,6 +15,7 @@ type FeedbackRow = {
   cleanliness_rating: number | null
   value_rating: number | null
   wait_time_rating: number | null
+  wifi_rating: number | null
   nps_score: number | null
   how_heard: string | null
   how_heard_other: string | null
@@ -107,6 +108,7 @@ export async function GET(req: NextRequest) {
   const avgAmbianceCleanliness = average(filtered.filter((f) => f.cleanliness_rating != null).map((f) => f.cleanliness_rating as number))
   const avgMenuVariety = average(filtered.filter((f) => f.value_rating != null).map((f) => f.value_rating as number))
   const avgBeverage = average(filtered.filter((f) => f.wait_time_rating != null).map((f) => f.wait_time_rating as number))
+  const avgWifi = average(filtered.filter((f) => f.wifi_rating != null).map((f) => f.wifi_rating as number))
   const avgOverall = average(filtered.map(overallOf))
 
   const categoryAverages = [
@@ -241,6 +243,7 @@ export async function GET(req: NextRequest) {
       cleanlinessRating: f.cleanliness_rating,
       valueRating: f.value_rating,
       waitTimeRating: f.wait_time_rating,
+      wifiRating: f.wifi_rating,
       npsScore: f.nps_score,
       comment: f.comment,
       servedBy: f.served_by,
@@ -323,6 +326,7 @@ export async function GET(req: NextRequest) {
       cleanlinessRating: f.cleanliness_rating,
       valueRating: f.value_rating,
       waitTimeRating: f.wait_time_rating,
+      wifiRating: f.wifi_rating,
       npsScore: f.nps_score,
       comment: f.comment,
       servedBy: f.served_by,
@@ -414,6 +418,7 @@ export async function GET(req: NextRequest) {
     avgOverall,
     avgHostess,
     avgBeverage,
+    avgWifi,
     avgFoodQuality,
     avgMenuVariety,
     avgService,

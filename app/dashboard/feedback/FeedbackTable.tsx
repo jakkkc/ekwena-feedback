@@ -19,6 +19,7 @@ type Row = {
   cleanliness_rating: number | null
   value_rating: number | null
   wait_time_rating: number | null
+  wifi_rating: number | null
   nps_score: number | null
   how_heard: string | null
   how_heard_other: string | null
@@ -188,7 +189,7 @@ export function FeedbackTable() {
   function exportCsv() {
     const header = [
       'Date', 'Bill Number', 'Group', 'Branch', 'Outlet', 'Source', 'Food', 'Service', 'Ambiance', 'Hostess',
-      'Ambiance & Cleanliness', 'Menu Variety', 'Beverage', 'Overall', 'NPS', 'How Heard', 'Served By',
+      'Ambiance & Cleanliness', 'Menu Variety', 'Beverage', 'Wifi', 'Overall', 'NPS', 'How Heard', 'Served By',
       'Collected By', 'Guest Name', 'Phone/Email', 'Comment', 'Status', 'Resolved By', 'Resolution Note',
     ]
     const lines = [header.map(csvCell).join(',')]
@@ -209,6 +210,7 @@ export function FeedbackTable() {
           r.cleanliness_rating,
           r.value_rating,
           r.wait_time_rating,
+          r.wifi_rating,
           overallOf(r),
           r.nps_score,
           r.how_heard ? (r.how_heard === 'other' && r.how_heard_other ? r.how_heard_other : HOW_HEARD[r.how_heard] || r.how_heard) : '',
@@ -371,6 +373,7 @@ export function FeedbackTable() {
                   { label: 'Ambiance', value: r.ambiance_rating },
                   { label: 'Hostess', value: r.hostess_rating },
                   { label: 'Beverage', value: r.wait_time_rating },
+                  { label: 'Wifi', value: r.wifi_rating },
                   { label: 'Menu Variety', value: r.value_rating },
                   { label: 'Ambiance & Cleanliness', value: r.cleanliness_rating },
                 ].filter((d) => d.value != null)

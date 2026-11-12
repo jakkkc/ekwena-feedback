@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const {
     branch, outlet, bill_number,
     food_rating, service_rating, ambiance_rating,
-    hostess_rating, cleanliness_rating, value_rating, wait_time_rating,
+    hostess_rating, cleanliness_rating, value_rating, wait_time_rating, wifi_rating,
     nps_score, how_heard,
   } = body
 
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     !isOptionalRating(cleanliness_rating, 1, 5) ||
     !isOptionalRating(value_rating, 1, 5) ||
     !isOptionalRating(wait_time_rating, 1, 5) ||
+    !isOptionalRating(wifi_rating, 1, 5) ||
     !isOptionalRating(nps_score, 0, 10)
   ) {
     return NextResponse.json({ error: 'Optional ratings are out of range' }, { status: 400 })
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest) {
     cleanliness_rating: cleanliness_rating ?? null,
     value_rating: value_rating ?? null,
     wait_time_rating: wait_time_rating ?? null,
+    wifi_rating: wifi_rating ?? null,
     nps_score: nps_score ?? null,
     how_heard,
     how_heard_other: how_heard === 'other' ? cleanText(body.how_heard_other, 200) : null,

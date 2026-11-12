@@ -43,6 +43,7 @@ type Stats = {
   avgOverall: number
   avgHostess: number
   avgBeverage: number
+  avgWifi: number
   avgFoodQuality: number
   avgMenuVariety: number
   avgService: number
@@ -66,6 +67,7 @@ type Stats = {
     id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
     ambianceRating: number; hostessRating: number | null; cleanlinessRating: number | null
     valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
+    wifiRating?: number | null
     comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
     groupName?: string | null
@@ -74,6 +76,7 @@ type Stats = {
     id: string; branch: string; outlet: string | null; foodRating: number; serviceRating: number
     ambianceRating: number; hostessRating: number | null; cleanlinessRating: number | null
     valueRating: number | null; waitTimeRating: number | null; npsScore: number | null
+    wifiRating?: number | null
     comment: string | null; servedBy: string | null
     collectedBy: string | null; guestName: string | null; guestPhone: string | null; createdAt: string
     groupName?: string | null
@@ -972,6 +975,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard icon={<Star size={18} />} label="Hostess Reception" value={stats.avgHostess || '—'} />
               <StatCard icon={<Star size={18} />} label="Beverage Quality" value={stats.avgBeverage || '—'} />
+              <StatCard icon={<Star size={18} />} label="Wifi Connectivity" value={stats.avgWifi || '—'} />
               <StatCard icon={<Star size={18} />} label="Menu Variety" value={stats.avgMenuVariety || '—'} />
               <StatCard
                 icon={<Star size={18} />}
@@ -1256,6 +1260,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     const optionalRatings: { label: string; value: number | null }[] = [
                       { label: 'Hostess', value: n.hostessRating },
                       { label: 'Beverage', value: n.waitTimeRating },
+                      { label: 'Wifi', value: n.wifiRating ?? null },
                       { label: 'Menu Variety', value: n.valueRating },
                       { label: 'Ambiance & Cleanliness', value: n.cleanlinessRating },
                     ].filter((r) => r.value != null)
@@ -1309,6 +1314,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     const optionalRatings: { label: string; value: number | null }[] = [
                       { label: 'Hostess', value: n.hostessRating },
                       { label: 'Beverage', value: n.waitTimeRating },
+                      { label: 'Wifi', value: n.wifiRating ?? null },
                       { label: 'Menu Variety', value: n.valueRating },
                       { label: 'Ambiance & Cleanliness', value: n.cleanlinessRating },
                     ].filter((r) => r.value != null)

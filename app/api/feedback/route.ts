@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     cleanliness_rating,
     value_rating,
     wait_time_rating,
+    wifi_rating,
     nps_score,
     how_heard,
     how_heard_other,
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     !isValidOptionalRating(cleanliness_rating, 1, 5) ||
     !isValidOptionalRating(value_rating, 1, 5) ||
     !isValidOptionalRating(wait_time_rating, 1, 5) ||
+    !isValidOptionalRating(wifi_rating, 1, 5) ||
     !isValidOptionalRating(nps_score, 0, 10)
   ) {
     return NextResponse.json({ error: 'Optional ratings are out of range' }, { status: 400 })
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest) {
     cleanliness_rating: cleanliness_rating || null,
     value_rating: value_rating || null,
     wait_time_rating: wait_time_rating || null,
+    wifi_rating: wifi_rating || null,
     nps_score: nps_score ?? null,
     how_heard,
     how_heard_other: how_heard === 'other' ? (how_heard_other || null) : null,

@@ -12,7 +12,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('feedback')
     .select(
-      'id, branch, outlet, source, bill_number, group_name, food_rating, service_rating, ambiance_rating, hostess_rating, cleanliness_rating, value_rating, wait_time_rating, nps_score, how_heard, how_heard_other, served_by, collected_by, comment, guest_name, guest_phone, created_at, resolved_at, resolved_by, resolution_note'
+      'id, branch, outlet, source, bill_number, group_name, food_rating, service_rating, ambiance_rating, hostess_rating, cleanliness_rating, value_rating, wait_time_rating, wifi_rating, nps_score, how_heard, how_heard_other, served_by, collected_by, comment, guest_name, guest_phone, created_at, resolved_at, resolved_by, resolution_note'
     )
     .order('created_at', { ascending: false })
     .limit(5000)

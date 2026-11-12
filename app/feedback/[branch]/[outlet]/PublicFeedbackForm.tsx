@@ -85,6 +85,7 @@ export function PublicFeedbackForm({
 
   const [hostess, setHostess] = useState(0)
   const [beverage, setBeverage] = useState(0)
+  const [wifi, setWifi] = useState(0)
   const [foodQuality, setFoodQuality] = useState(0)
   const [menuVariety, setMenuVariety] = useState(0)
   const [service, setService] = useState(0)
@@ -200,6 +201,7 @@ export function PublicFeedbackForm({
           cleanliness_rating: ambianceCleanliness || undefined,
           value_rating: menuVariety || undefined,
           wait_time_rating: beverage || undefined,
+          wifi_rating: wifi || undefined,
           nps_score: nps ?? undefined,
           how_heard: howHeard,
           how_heard_other: howHeardOther,
@@ -342,6 +344,7 @@ export function PublicFeedbackForm({
               value={ambianceCleanliness}
               onChange={setAmbianceCleanliness}
             />
+            <StarRating label="Wifi Connectivity" optional value={wifi} onChange={setWifi} />
           </>
         )}
 
