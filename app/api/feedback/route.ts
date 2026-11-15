@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   let groupName: string | null = null
   if (grouped) {
     const wanted = typeof group_name === 'string' ? group_name.trim().toLowerCase() : ''
-    const { data: groups } = await supabase.from('event_groups').select('name').eq('active', true)
+    const { data: groups } = await supabase.from('event_groups').select('name').eq('active', true).eq('branch', session.branch)
     const match = (groups || []).find((g) => g.name.toLowerCase() === wanted)
     if (!match) {
       return NextResponse.json({ error: 'Please select a valid group' }, { status: 400 })

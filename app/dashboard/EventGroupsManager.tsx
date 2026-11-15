@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Plus, Archive, RotateCcw, Trash2 } from 'lucide-react'
 
-type EventGroup = { id: string; name: string; active: boolean }
+type EventGroup = { id: string; name: string; branch: string; active: boolean }
+const BRANCH_SHORT: Record<string, string> = { cottages: 'Cottages', tuuti: 'Tuuti' }
 
 export function EventGroupsManager() {
   const [groups, setGroups] = useState<EventGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
+  const [newBranch, setNewBranch] = useState('cottages')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -32,7 +34,7 @@ export function EventGroupsManager() {
     const res = await fetch('/api/groups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim() }),
+      body: JSON.stringify({ name: newName.trim(), branch: newBranch }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -69,6 +71,14 @@ export function EventGroupsManager() {
       </p>
 
       <div className="flex gap-2 mb-2">
+        <select
+          value={newBranch}
+          onChange={(e) => setNewBranch(e.target.value)}
+          className="border border-beige rounded-lg px-2 py-2 text-brown bg-cream"
+        >
+          <option value="cottages">Cottages</option>
+          <option value="tuuti">Tuuti</option>
+        </select>
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -95,7 +105,7 @@ export function EventGroupsManager() {
             {active.length === 0 && <li className="py-2 text-sm text-brown-light">No active groups yet.</li>}
             {active.map((g) => (
               <li key={g.id} className="flex items-center justify-between py-2 text-brown">
-                <span>{g.name}</span>
+                <span>{g.name} <span className="text-xs text-brown-light">· {BRANCH_SHORT[g.branch] || g.branch}</span></span>
                 <button onClick={() => setActive(g.id, false)} className="flex items-center gap-1 text-sm text-brown-light hover:text-brown">
                   <Archive size={14} /> Archive
                 </button>
@@ -109,7 +119,7 @@ export function EventGroupsManager() {
               <ul className="divide-y divide-beige">
                 {archived.map((g) => (
                   <li key={g.id} className="flex items-center justify-between py-2 text-brown-light">
-                    <span>{g.name}</span>
+                    <span>{g.name} <span className="text-xs text-brown-light">· {BRANCH_SHORT[g.branch] || g.branch}</span></span>
                     <span className="flex gap-3 text-sm">
                       <button onClick={() => setActive(g.id, true)} className="flex items-center gap-1 hover:text-brown">
                         <RotateCcw size={14} /> Restore

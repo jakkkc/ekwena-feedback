@@ -83,8 +83,8 @@ export function WaiterFeedbackForm({
   const [groupOptions, setGroupOptions] = useState<string[]>([])
   useEffect(() => {
     if (!grouped) return
-    const KEY = 'fb_groups_cache_v1'
-    fetch('/api/public/groups')
+    const KEY = `fb_groups_cache_v1_${branchKey}`
+    fetch(`/api/public/groups?branch=${branchKey}`)
       .then((r) => r.json())
       .then((d) => {
         const list: string[] = d.groups || []
@@ -94,7 +94,7 @@ export function WaiterFeedbackForm({
       .catch(() => {
         try { setGroupOptions(JSON.parse(localStorage.getItem(KEY) || '[]')) } catch {}
       })
-  }, [grouped])
+  }, [grouped, branchKey])
   const [checkingBill, setCheckingBill] = useState(false)
 
   const [hostess, setHostess] = useState(0)

@@ -75,12 +75,12 @@ export function PublicFeedbackForm({
   const [groupsLoaded, setGroupsLoaded] = useState(false)
   useEffect(() => {
     if (!grouped) return
-    fetch('/api/public/groups')
+    fetch(`/api/public/groups?branch=${branch}`)
       .then((r) => r.json())
       .then((d) => setGroupOptions(d.groups || []))
       .catch(() => setGroupOptions([]))
       .finally(() => setGroupsLoaded(true))
-  }, [grouped])
+  }, [grouped, branch])
   const [checkingBill, setCheckingBill] = useState(false)
 
   const [hostess, setHostess] = useState(0)

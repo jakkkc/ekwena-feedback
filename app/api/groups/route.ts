@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/session'
+import { isBranch } from '@/lib/venues'
 
 async function requireManager() {
   const session = await getSession()
@@ -14,7 +15,7 @@ export async function GET() {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('event_groups')
-    .select('id, name, active, created_at')
+    .select('id, name, branch, active, created_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: 'Could not load groups' }, { status: 500 })
@@ -27,9 +28,11 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ').slice(0, 100) : ''
   if (!name) return NextResponse.json({ error: 'Please enter a group name' }, { status: 400 })
+  const branch = body.branch
+  if (!isBranch(branch)) return NextResponse.json({ error: 'Please choose a branch' }, { status: 400 })
 
   const supabase = createServiceClient()
-  const { error } = await supabase.from('event_groups').insert({ name })
+  const { error } = await supabase.from('event_groups').insert({ name, branch })
   if (error) {
     if (error.code === '23505') {
       return NextResponse.json({ error: 'This group already exists' }, { status: 409 })

@@ -401,7 +401,7 @@ export async function GET(req: NextRequest) {
     })
     .sort((a, b) => b.responses - a.responses)
   const groupOptions = Array.from(
-    new Set(all.map((f) => f.group_name).filter((g): g is string => !!g))
+    new Set(all.filter(matchesBranch).map((f) => f.group_name).filter((g): g is string => !!g))
   ).sort()
 
   return NextResponse.json({
