@@ -70,7 +70,7 @@ export function EventGroupsManager() {
         Guests at Eswara Conference Hall pick their group from this list. Archive a group when its event is over.
       </p>
 
-      <div className="flex gap-2 mb-2">
+      <div className="flex flex-wrap gap-2 mb-2">
         <select
           value={newBranch}
           onChange={(e) => setNewBranch(e.target.value)}
@@ -85,7 +85,7 @@ export function EventGroupsManager() {
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="e.g. UNICEF"
           maxLength={100}
-          className="flex-1 border border-beige rounded-lg px-3 py-2 text-brown bg-cream"
+          className="flex-1 min-w-[10rem] border border-beige rounded-lg px-3 py-2 text-brown bg-cream"
         />
         <button
           onClick={add}

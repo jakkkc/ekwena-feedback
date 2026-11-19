@@ -797,17 +797,17 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   return (
     <main className="min-h-screen bg-beige-light p-4 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col gap-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap justify-between items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <Logo size={56} />
-            <div>
-              <h1 className="text-xl font-heading text-brown">F&B Guest Feedback Dashboard</h1>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-heading text-brown">F&B Guest Feedback Dashboard</h1>
               <p className="text-xs text-brown-light font-body">Welcome, {managerName}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1 text-sm text-brown-light hover:text-brown transition font-body"
+            className="flex items-center gap-1 text-sm text-brown-light hover:text-brown transition font-body whitespace-nowrap shrink-0"
           >
             <LogOut size={16} /> Log Out
           </button>
@@ -869,14 +869,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-full border border-beige px-3 py-1.5 text-xs font-body text-brown bg-cream focus:outline-none focus:border-orange"
+              className="min-w-0 flex-1 sm:flex-none rounded-full border border-beige px-3 py-1.5 text-xs font-body text-brown bg-cream focus:outline-none focus:border-orange"
             />
             <label className="text-xs text-brown-light font-body">To</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-full border border-beige px-3 py-1.5 text-xs font-body text-brown bg-cream focus:outline-none focus:border-orange"
+              className="min-w-0 flex-1 sm:flex-none rounded-full border border-beige px-3 py-1.5 text-xs font-body text-brown bg-cream focus:outline-none focus:border-orange"
             />
             {(startDate || endDate) && (
               <button
@@ -886,22 +886,24 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 Clear dates
               </button>
             )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             <a
               href="/dashboard/feedback"
-              className="ml-auto flex items-center gap-1.5 bg-cream border border-brown/30 text-brown px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-beige-light transition"
+              className="flex items-center justify-center gap-1.5 bg-cream border border-brown/30 text-brown px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-beige-light transition"
             >
               <List size={16} /> All Feedback
             </a>
             <a
               href="/dashboard/qr"
-              className="flex items-center gap-1.5 bg-orange text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-orange-light transition"
+              className="flex items-center justify-center gap-1.5 bg-orange text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-orange-light transition"
             >
               <QrCode size={16} /> QR Codes
             </a>
             <button
               onClick={handleDownloadReport}
               disabled={generatingReport || loading || !stats}
-              className="flex items-center gap-1.5 bg-brown text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-brown-light transition disabled:opacity-50"
+              className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 bg-brown text-cream px-4 py-2 rounded-full font-body text-sm font-semibold hover:bg-brown-light transition disabled:opacity-50"
             >
               <FileDown size={16} /> {generatingReport ? 'Generating Report...' : 'Download Report (PDF)'}
             </button>
