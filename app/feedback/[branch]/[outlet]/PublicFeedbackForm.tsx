@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usesGroupName } from '@/lib/venues'
+import { usesGroupName, MAX_RESPONSES_PER_BILL } from '@/lib/venues'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { GOOGLE_REVIEW_LINKS, type Branch } from '@/lib/venues'
@@ -145,7 +145,7 @@ export function PublicFeedbackForm({
           return
         }
         if (!data.available) {
-          setError('This bill number has already been used. Please check your receipt.')
+          setError(`This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.`)
           return
         }
       } catch {

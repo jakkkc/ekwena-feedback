@@ -40,3 +40,6 @@ export const GROUP_NAME_OUTLETS: readonly string[] = ['eswara_conference_hall']
 export function usesGroupName(outlet: string | null | undefined) {
   return !!outlet && GROUP_NAME_OUTLETS.includes(outlet)
 }
+
+// Most feedback responses allowed for one bill (also enforced in the database).
+export const MAX_RESPONSES_PER_BILL = 7

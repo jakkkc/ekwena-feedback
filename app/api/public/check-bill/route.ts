@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { MAX_RESPONSES_PER_BILL } from '@/lib/venues'
 
 export async function GET(req: NextRequest) {
   const billNumber = new URL(req.url).searchParams.get('bill_number') || ''
@@ -9,15 +10,15 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  const { count, error } = await supabase
     .from('feedback')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('bill_number', billNumber)
-    .maybeSingle()
 
   if (error) {
     return NextResponse.json({ error: 'Could not verify bill number' }, { status: 500 })
   }
 
-  return NextResponse.json({ available: !data })
+  const used = count ?? 0
+  return NextResponse.json({ available: used < MAX_RESPONSES_PER_BILL, used, max: MAX_RESPONSES_PER_BILL })
 }

@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usesGroupName } from '@/lib/venues'
+import { usesGroupName, MAX_RESPONSES_PER_BILL } from '@/lib/venues'
 import { useRouter } from 'next/navigation'
 import { Star } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import QRCode from 'qrcode'
 import { GOOGLE_REVIEW_LINKS, isBranch } from '@/lib/venues'
 import { OfflineQueueBar } from './OfflineQueueBar'
-import { hasQueuedBill, loadRosterCache, saveRosterCache, submitOrQueue } from '@/lib/offlineQueue'
+import { queuedBillCount, loadRosterCache, saveRosterCache, submitOrQueue } from '@/lib/offlineQueue'
 
 function StarRating({
   label,
@@ -174,8 +174,9 @@ export function WaiterFeedbackForm({
         setError('Please enter a valid bill number (numbers only)')
         return
       }
-      if (hasQueuedBill(scope, billNumber)) {
-        setError('A feedback with this bill number is already waiting to send on this tablet.')
+      const queuedForBill = queuedBillCount(scope, billNumber)
+      if (queuedForBill >= MAX_RESPONSES_PER_BILL) {
+        setError('This bill already has the maximum number of responses waiting to send on this tablet.')
         return
       }
       setCheckingBill(true)
@@ -188,8 +189,8 @@ export function WaiterFeedbackForm({
           setError(data.error || 'Could not verify bill number')
           return
         }
-        if (!data.available) {
-          setError('This bill number has already been used. Please check the receipt.')
+        if ((data.used ?? 0) + queuedForBill >= MAX_RESPONSES_PER_BILL) {
+          setError(`This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.`)
           return
         }
       } catch {

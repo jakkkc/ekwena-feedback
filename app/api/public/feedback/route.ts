@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
-import { isBranch, isOutlet, usesGroupName } from '@/lib/venues'
+import { isBranch, isOutlet, usesGroupName, MAX_RESPONSES_PER_BILL } from '@/lib/venues'
 
 const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
 const RATE_LIMIT_MAX = 20
@@ -141,6 +141,12 @@ export async function POST(req: NextRequest) {
     if (error.code === '23505') {
       return NextResponse.json(
         { error: 'This bill number has already been used. Please check the receipt.' },
+        { status: 409 }
+      )
+    }
+    if (error.message.includes('bill_limit_reached')) {
+      return NextResponse.json(
+        { error: `This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.` },
         { status: 409 }
       )
     }

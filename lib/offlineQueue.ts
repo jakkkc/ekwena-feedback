@@ -51,6 +51,10 @@ export function hasQueuedBill(scope: string, bill: string) {
   return getQueue(scope).some((i) => String(i.payload.bill_number) === bill)
 }
 
+export function queuedBillCount(scope: string, bill: string) {
+  return getQueue(scope).filter((i) => String(i.payload.bill_number) === bill).length
+}
+
 export function enqueue(id: string, scope: string, payload: Record<string, unknown>) {
   const items = readAll().filter((i) => i.id !== id)
   items.push({ id, scope, payload, createdAt: Date.now(), status: 'pending' })
