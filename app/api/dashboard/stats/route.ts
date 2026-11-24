@@ -315,6 +315,7 @@ export async function GET(req: NextRequest) {
       const npsLow = f.nps_score != null && f.nps_score <= 6
       return coreLow || optionalLow || npsLow
     })
+  const needsAttentionCount = flaggedRows.filter((f) => !f.resolved_at).length
   const toAttentionItem = (f: FeedbackRow) => ({
       id: f.id,
       branch: f.branch,
@@ -434,6 +435,7 @@ export async function GET(req: NextRequest) {
     staffLeaderboard,
     collectionVolume,
     needsAttention,
+    needsAttentionCount,
     guestList,
     repeatGuestCount,
   })

@@ -264,9 +264,6 @@ export function FeedbackTable() {
     <main className="min-h-dvh bg-beige-light p-4 md:p-8">
       <div className="max-w-7xl mx-auto flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-3">
-          <a href="/dashboard" className="flex items-center gap-1.5 text-sm font-body text-brown-light hover:text-brown transition">
-            <ArrowLeft size={16} /> Back to dashboard
-          </a>
           <button
             onClick={exportCsv}
             disabled={filtered.length === 0}

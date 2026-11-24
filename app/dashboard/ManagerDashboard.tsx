@@ -165,6 +165,12 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   }, [loadStats])
 
   useEffect(() => {
+    const onRefresh = () => { loadStats() }
+    window.addEventListener('dashboard-refresh', onRefresh)
+    return () => window.removeEventListener('dashboard-refresh', onRefresh)
+  }, [loadStats])
+
+  useEffect(() => {
     fetch('/api/staff')
       .then((res) => res.json())
       .then((data) => setStaff(data.staff || []))
@@ -797,20 +803,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   return (
     <main className="min-h-screen bg-beige-light p-4 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col gap-8">
-        <div className="flex flex-wrap justify-between items-center gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Logo size={56} />
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-heading text-brown">F&B Guest Feedback Dashboard</h1>
-              <p className="text-xs text-brown-light font-body">Welcome, {managerName}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1 text-sm text-brown-light hover:text-brown transition font-body whitespace-nowrap shrink-0"
-          >
-            <LogOut size={16} /> Log Out
-          </button>
+        <div>
+          <h1 className="text-2xl font-heading text-brown">Analytics</h1>
+          <p className="text-xs text-brown-light font-body">Welcome, {managerName}</p>
         </div>
 
         <div className="bg-cream rounded-2xl p-4 shadow-sm flex flex-col gap-3">
