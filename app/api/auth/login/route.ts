@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceClient()
-  const { data: staffList, error } = await supabase.from('staff').select('*')
+  const { data: staffList, error } = await supabase.from('staff').select('*').eq('active', true)
 
   if (error || !staffList) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

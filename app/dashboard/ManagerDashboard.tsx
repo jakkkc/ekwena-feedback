@@ -1444,61 +1444,6 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
             </div>
           </>
         )}
-
-        <RosterManager />
-        <EventGroupsManager />
-
-        <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
-          <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
-            <Users2 size={18} /> Staff & PINs
-          </h2>
-          <div className="flex flex-col gap-3">
-            {staff.map((s) => (
-              <div key={s.id} className="flex justify-between items-center border border-beige rounded-xl p-3">
-                <div>
-                  <p className="font-body font-semibold text-brown text-sm">{s.name}</p>
-                  <p className="text-xs text-brown-light font-body capitalize">
-                    {s.role}
-                    {s.branch ? ` — ${BRANCH_NAMES[s.branch]}` : ''}
-                  </p>
-                </div>
-                {editingStaffId === s.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="New PIN"
-                      value={newPin}
-                      onChange={(e) => setNewPin(e.target.value)}
-                      className="w-24 rounded-full border border-beige px-3 py-1 text-sm font-body focus:outline-none focus:border-orange"
-                    />
-                    <button
-                      onClick={handleSavePin}
-                      disabled={pinSaving}
-                      className="text-xs bg-orange text-cream px-3 py-1.5 rounded-full font-body font-semibold hover:bg-orange-light transition disabled:opacity-50"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => { setEditingStaffId(null); setNewPin(''); setPinError('') }}
-                      className="text-xs text-brown-light font-body"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setEditingStaffId(s.id); setNewPin(''); setPinError('') }}
-                    className="flex items-center gap-1 text-xs text-brown-light hover:text-orange transition font-body"
-                  >
-                    <KeyRound size={14} /> Change PIN
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {pinError && <p className="text-sm text-red-700 font-body mt-2">{pinError}</p>}
-        </div>
       </div>
     </main>
   )
