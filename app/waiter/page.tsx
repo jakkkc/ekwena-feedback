@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { WaiterFeedbackForm } from './WaiterFeedbackForm'
 
@@ -15,6 +16,7 @@ const OUTLET_NAMES: Record<string, string> = {
 
 export default async function WaiterPage() {
   const session = await getSession()
+  if (!session) redirect('/login')
   const branchName = session?.branch ? BRANCH_NAMES[session.branch] : ''
   const outletName = session?.outlet ? OUTLET_NAMES[session.outlet] : ''
 
