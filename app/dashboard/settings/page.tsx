@@ -1,6 +1,6 @@
 import { StaffSettingsClient } from './StaffSettingsClient'
 
-export const metadata = { title: 'Staff Settings' }
+export const metadata = { title: 'Settings' }
 
 export default function StaffSettingsPage() {
   return <StaffSettingsClient />

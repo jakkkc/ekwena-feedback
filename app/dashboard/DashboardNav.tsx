@@ -12,7 +12,7 @@ const LINKS = [
   { href: '/dashboard', label: 'Analytics', short: 'Analytics', badge: false },
   { href: '/dashboard/feedback', label: 'Feedback', short: 'Feedback', badge: true },
   { href: '/dashboard/qr', label: 'QR Codes', short: 'QR Codes', badge: false },
-  { href: '/dashboard/staff', label: 'Staff Settings', short: 'Staff', badge: false },
+  { href: '/dashboard/settings', label: 'Settings', short: 'Settings', badge: false },
 ]
 
 function isActive(pathname: string, href: string) {
