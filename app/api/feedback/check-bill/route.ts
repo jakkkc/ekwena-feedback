@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { MAX_RESPONSES_PER_BILL } from '@/lib/venues'
+import { getSettings } from '@/lib/settings'
 import { getSession } from '@/lib/session'
 
 export async function GET(req: NextRequest) {
@@ -27,5 +27,6 @@ export async function GET(req: NextRequest) {
   }
 
   const used = count ?? 0
-  return NextResponse.json({ available: used < MAX_RESPONSES_PER_BILL, used, max: MAX_RESPONSES_PER_BILL })
+  const max = (await getSettings()).max_responses_per_bill
+  return NextResponse.json({ available: used < max, used, max })
 }

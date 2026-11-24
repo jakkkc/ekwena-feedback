@@ -145,7 +145,7 @@ export function PublicFeedbackForm({
           return
         }
         if (!data.available) {
-          setError(`This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.`)
+          setError(`This bill already has the maximum of ${data.max ?? MAX_RESPONSES_PER_BILL} responses.`)
           return
         }
       } catch {

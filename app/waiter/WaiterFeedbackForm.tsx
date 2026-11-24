@@ -189,8 +189,9 @@ export function WaiterFeedbackForm({
           setError(data.error || 'Could not verify bill number')
           return
         }
-        if ((data.used ?? 0) + queuedForBill >= MAX_RESPONSES_PER_BILL) {
-          setError(`This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.`)
+        const maxBill = data.max ?? MAX_RESPONSES_PER_BILL
+        if ((data.used ?? 0) + queuedForBill >= maxBill) {
+          setError(`This bill already has the maximum of ${maxBill} responses.`)
           return
         }
       } catch {

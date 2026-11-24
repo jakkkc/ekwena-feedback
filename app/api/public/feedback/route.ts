@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSettings } from '@/lib/settings'
 import { isBranch, isOutlet, usesGroupName, MAX_RESPONSES_PER_BILL } from '@/lib/venues'
 
 const HOW_HEARD_OPTIONS = ['online', 'referral', 'repeat_guest', 'other']
@@ -97,14 +98,15 @@ export async function POST(req: NextRequest) {
     groupName = match.name
   }
 
-  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString()
+  const cfg = await getSettings()
+  const since = new Date(Date.now() - cfg.rate_limit_window_minutes * 60 * 1000).toISOString()
   const { count } = await supabase
     .from('feedback')
     .select('id', { count: 'exact', head: true })
     .eq('client_hash', hash)
     .gte('created_at', since)
 
-  if ((count ?? 0) >= (grouped ? GROUP_RATE_LIMIT_MAX : RATE_LIMIT_MAX)) {
+  if ((count ?? 0) >= (grouped ? cfg.rate_limit_group_max : cfg.rate_limit_max)) {
     return NextResponse.json(
       { error: 'Too many submissions from this connection. Please try again in a few minutes.' },
       { status: 429 }
@@ -146,7 +148,7 @@ export async function POST(req: NextRequest) {
     }
     if (error.message.includes('bill_limit_reached')) {
       return NextResponse.json(
-        { error: `This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.` },
+        { error: 'This bill has reached the maximum number of responses.' },
         { status: 409 }
       )
     }

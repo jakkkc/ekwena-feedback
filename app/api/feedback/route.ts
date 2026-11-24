@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     }
     if (error.message.includes('bill_limit_reached')) {
       return NextResponse.json(
-        { error: `This bill already has the maximum of ${MAX_RESPONSES_PER_BILL} responses.` },
+        { error: 'This bill has reached the maximum number of responses.' },
         { status: 409 }
       )
     }

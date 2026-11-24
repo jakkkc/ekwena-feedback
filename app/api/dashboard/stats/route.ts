@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/session'
+import { getSettings } from '@/lib/settings'
 
 type FeedbackRow = {
   id: string
@@ -306,15 +307,22 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.count - a.count)
 
   // --- Needs attention (any low individual rating or low NPS) ---
-  const flaggedRows = filtered
-    .filter((f) => {
-      const coreLow = [f.food_rating, f.service_rating, f.ambiance_rating].some((r) => r <= 2)
-      const optionalLow = [f.hostess_rating, f.cleanliness_rating, f.value_rating, f.wait_time_rating].some(
-        (r) => r != null && r <= 2
-      )
-      const npsLow = f.nps_score != null && f.nps_score <= 6
-      return coreLow || optionalLow || npsLow
-    })
+  const cfg = await getSettings()
+  const has = (k: string) => cfg.attention_categories.includes(k)
+  const flaggedRows = filtered.filter((f) => {
+    const checked: (number | null)[] = []
+    if (has('food')) checked.push(f.food_rating)
+    if (has('service')) checked.push(f.service_rating)
+    if (has('ambiance')) checked.push(f.ambiance_rating)
+    if (has('hostess')) checked.push(f.hostess_rating)
+    if (has('cleanliness')) checked.push(f.cleanliness_rating)
+    if (has('value')) checked.push(f.value_rating)
+    if (has('wait_time')) checked.push(f.wait_time_rating)
+    if (has('wifi')) checked.push(f.wifi_rating)
+    const ratingLow = checked.some((r) => r != null && r <= cfg.attention_rating_max)
+    const npsLow = cfg.attention_nps_enabled && f.nps_score != null && f.nps_score <= cfg.attention_nps_max
+    return ratingLow || npsLow
+  })
   const needsAttentionCount = flaggedRows.filter((f) => !f.resolved_at).length
   const toAttentionItem = (f: FeedbackRow) => ({
       id: f.id,

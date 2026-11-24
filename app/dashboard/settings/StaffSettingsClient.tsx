@@ -5,6 +5,7 @@ import { Tabs } from '../Tabs'
 import { RosterManager } from '../RosterManager'
 import { EventGroupsManager } from '../EventGroupsManager'
 import { LoginsManager } from '../LoginsManager'
+import { RulesManager } from '../RulesManager'
 
 export function StaffSettingsClient() {
   const [tab, setTab] = useState('team')
@@ -20,6 +21,7 @@ export function StaffSettingsClient() {
             { key: 'team', label: 'Team' },
             { key: 'logins', label: 'Logins' },
             { key: 'groups', label: 'Event Groups' },
+            { key: 'rules', label: 'Rules' },
           ]}
           active={tab}
           onChange={setTab}
@@ -27,6 +29,7 @@ export function StaffSettingsClient() {
         {tab === 'team' && <RosterManager />}
         {tab === 'logins' && <LoginsManager />}
         {tab === 'groups' && <EventGroupsManager />}
+        {tab === 'rules' && <RulesManager />}
       </div>
     </main>
   )
