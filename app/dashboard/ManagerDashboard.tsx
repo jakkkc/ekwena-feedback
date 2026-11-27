@@ -14,6 +14,7 @@ import { Logo } from '@/components/Logo'
 import { RosterManager } from './RosterManager'
 import { EventGroupsManager } from './EventGroupsManager'
 import { ResolveButton, ResolvedList, type ResolvedItem } from './ResolveControls'
+import { Tabs } from './Tabs'
 
 const BRANCH_NAMES: Record<string, string> = {
   cottages: 'Cottages',
@@ -86,6 +87,7 @@ type Stats = {
   repeatGuestCount: number
   groupSummary: { name: string; responses: number; avgOverall: number; nps: number | null }[]
   groupOptions: string[]
+  needsAttentionCount: number
 }
 
 type StaffMember = { id: string; name: string; role: 'manager' | 'waiter'; branch: string | null }
@@ -129,6 +131,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   const [branchFilter, setBranchFilter] = useState<'all' | 'cottages' | 'tuuti'>('all')
   const [outletFilter, setOutletFilter] = useState('all')
   const [groupFilter, setGroupFilter] = useState('all')
+  const [tab, setTab] = useState('overview')
+  const [restored, setRestored] = useState(false)
+  const [printAll, setPrintAll] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
@@ -161,8 +166,34 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   }, [branchFilter, outletFilter, groupFilter, startDate, endDate])
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('dash_state_v1')
+      if (raw) {
+        const v = JSON.parse(raw)
+        if (v.branch === 'all' || v.branch === 'cottages' || v.branch === 'tuuti') setBranchFilter(v.branch)
+        if (typeof v.outlet === 'string') setOutletFilter(v.outlet)
+        if (typeof v.group === 'string') setGroupFilter(v.group)
+        if (typeof v.start === 'string') setStartDate(v.start)
+        if (typeof v.end === 'string') setEndDate(v.end)
+        if (['overview', 'trends', 'people', 'groups', 'comments'].includes(v.tab)) setTab(v.tab)
+      }
+    } catch {}
+    setRestored(true)
+  }, [])
+
+  useEffect(() => {
+    if (!restored) return
+    try {
+      localStorage.setItem('dash_state_v1', JSON.stringify({
+        tab, branch: branchFilter, outlet: outletFilter, group: groupFilter, start: startDate, end: endDate,
+      }))
+    } catch {}
+  }, [restored, tab, branchFilter, outletFilter, groupFilter, startDate, endDate])
+
+  useEffect(() => {
+    if (!restored) return
     loadStats()
-  }, [loadStats])
+  }, [loadStats, restored])
 
   useEffect(() => {
     const onRefresh = () => { loadStats() }
@@ -207,6 +238,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   async function handleDownloadReport() {
     if (!stats) return
     setGeneratingReport(true)
+    // Show every tab for a moment so the charts can be captured for the PDF
+    setPrintAll(true)
+    await new Promise((r) => setTimeout(r, 900))
     try {
       const { default: JsPDF } = await import('jspdf')
       const html2canvas = (await import('html2canvas')).default
@@ -778,6 +812,7 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
       alert('Report generation failed: ' + message)
     } finally {
       setGeneratingReport(false)
+      setPrintAll(false)
     }
   }
   const trendFormatted = stats?.trend.map((t) => ({
@@ -905,10 +940,36 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
           </div>
         </div>
 
+        <Tabs
+          tabs={[
+            { key: 'overview', label: 'Overview' },
+            { key: 'trends', label: 'Trends' },
+            { key: 'people', label: 'Guests & Staff', short: 'People' },
+            { key: 'groups', label: 'Groups' },
+            { key: 'comments', label: 'Comments' },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
+
         {loading || !stats ? (
           <p className="text-brown-light font-body">Loading stats...</p>
         ) : (
           <>
+            {(tab === 'overview' || printAll) && (
+              <>
+              {stats.needsAttentionCount > 0 && (
+                <button
+                  onClick={() => setTab('comments')}
+                  className="w-full flex items-center justify-between gap-3 bg-red-50 border border-red-300 text-red-800 rounded-2xl px-4 py-3 text-left font-body text-sm"
+                >
+                  <span>
+                    <strong>{stats.needsAttentionCount}</strong>{' '}
+                    {stats.needsAttentionCount === 1 ? 'feedback needs' : 'feedback need'} attention
+                  </span>
+                  <span className="font-semibold underline whitespace-nowrap">View</span>
+                </button>
+              )}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <StatCard icon={<MessageSquare size={20} />} label="Total Feedback" value={stats.totalCount} />
               <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} />
@@ -1028,6 +1089,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               )}
             </div>
 
+              </>
+            )}
+
+            {(tab === 'trends' || printAll) && (
+              <>
             <div ref={ratingTrendRef} className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                 <TrendingUp size={18} /> Rating Trend
@@ -1176,6 +1242,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </div>
             </div>
 
+              </>
+            )}
+
+            {(tab === 'people' || printAll) && (
+              <>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
                 <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
@@ -1219,6 +1290,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </div>
             </div>
 
+              </>
+            )}
+
+            {(tab === 'groups' || printAll) && (
+              <>
             {(stats.groupSummary || []).length > 0 && (
               <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
                 <h2 className="font-heading text-lg text-brown mb-4">Group Summary</h2>
@@ -1245,6 +1321,14 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               </div>
             )}
 
+              {(stats.groupSummary || []).length === 0 && (
+                <p className="text-brown-light font-body text-sm">No group feedback for these filters.</p>
+              )}
+              </>
+            )}
+
+            {(tab === 'comments' || printAll) && (
+              <>
             <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm border-2 border-green-600/40">
               <h2 className="font-heading text-lg text-brown mb-4 flex items-center gap-2">
                 <Sparkles size={18} className="text-green-600" /> Best Feedback
@@ -1407,6 +1491,11 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
               )}
             </div>
 
+              </>
+            )}
+
+            {(tab === 'people' || printAll) && (
+              <>
             <div className="bg-cream rounded-2xl p-4 md:p-6 shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-heading text-lg text-brown">Guest Contact List</h2>
@@ -1442,6 +1531,8 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 </div>
               )}
             </div>
+              </>
+            )}
           </>
         )}
       </div>

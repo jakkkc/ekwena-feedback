@@ -5,7 +5,7 @@ export function Tabs({
   active,
   onChange,
 }: {
-  tabs: { key: string; label: string }[]
+  tabs: { key: string; label: string; short?: string }[]
   active: string
   onChange: (key: string) => void
 }) {
@@ -23,7 +23,8 @@ export function Tabs({
               : 'border-transparent text-brown-light hover:text-brown'
           }`}
         >
-          {t.label}
+          <span className="sm:hidden">{t.short ?? t.label}</span>
+          <span className="hidden sm:inline">{t.label}</span>
         </button>
       ))}
     </div>

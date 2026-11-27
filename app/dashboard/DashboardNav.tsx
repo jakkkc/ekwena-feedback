@@ -50,6 +50,7 @@ export function DashboardNav() {
   }
 
   async function logout() {
+    try { localStorage.removeItem('dash_state_v1') } catch {}
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
   }
