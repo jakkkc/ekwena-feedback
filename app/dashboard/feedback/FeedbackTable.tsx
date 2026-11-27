@@ -44,6 +44,12 @@ const HOW_HEARD: Record<string, string> = {
   other: 'Other',
 }
 
+const CATEGORY_FILTERS: Record<string, { label: string; get: (r: Row) => (number | null)[] }> = {
+  hostess: { label: 'Hostess Reception', get: (r) => [r.hostess_rating] },
+  wifi: { label: 'Wifi Connectivity', get: (r) => [r.wifi_rating] },
+  ambiance: { label: 'Ambiance & Cleanliness', get: (r) => [r.ambiance_rating, r.cleanliness_rating] },
+}
+
 function ratingsOf(r: Row) {
   return [
     r.food_rating,
@@ -103,6 +109,7 @@ export function FeedbackTable() {
   const [page, setPage] = useState(1)
   const [openId, setOpenId] = useState('')
   const [busyId, setBusyId] = useState('')
+  const [cat, setCat] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -125,6 +132,27 @@ export function FeedbackTable() {
     load()
   }, [load])
 
+  // Filters can arrive in the link, e.g. from a dashboard card
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search)
+      const br = p.get('branch')
+      if (br) setBranch(br)
+      const ou = p.get('outlet')
+      if (ou) setOutlet(ou)
+      const gr = p.get('group')
+      if (gr) setGroup(gr)
+      const st = p.get('status')
+      if (st === 'open' || st === 'resolved' || st === 'ok') setStatus(st)
+      const f = p.get('from')
+      if (f) setFrom(f)
+      const t = p.get('to')
+      if (t) setTo(t)
+      const c = p.get('cat')
+      if (c && CATEGORY_FILTERS[c]) setCat(c)
+    } catch {}
+  }, [])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const fromD = from ? new Date(from + 'T00:00:00') : null
@@ -135,6 +163,7 @@ export function FeedbackTable() {
       if (group !== 'all' && r.group_name !== group) return false
       if (source !== 'all' && (r.source || 'tablet') !== source) return false
       if (status !== 'all' && statusOf(r) !== status) return false
+      if (cat && !CATEGORY_FILTERS[cat].get(r).some((v) => v != null && v <= 2)) return false
       const d = new Date(r.created_at)
       if (fromD && d < fromD) return false
       if (toD && d > toD) return false
@@ -160,7 +189,7 @@ export function FeedbackTable() {
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir
     })
     return list
-  }, [rows, search, branch, outlet, group, source, status, from, to, sortKey, sortDir])
+  }, [rows, search, branch, outlet, group, source, status, cat, from, to, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -278,6 +307,15 @@ export function FeedbackTable() {
           <p className="font-body text-brown-light text-sm mt-1">
             {loading ? 'Loading...' : `${filtered.length} of ${rows.length} responses`}
           </p>
+          {cat && CATEGORY_FILTERS[cat] && (
+            <button
+              type="button"
+              onClick={() => { setCat(''); setPage(1) }}
+              className="mt-2 inline-flex items-center gap-1.5 bg-orange/10 border border-orange text-brown rounded-full px-3 py-1 text-xs font-body hover:bg-orange/20 transition"
+            >
+              Filtered by: {CATEGORY_FILTERS[cat].label} · low ratings (1-2) <span aria-hidden>✕</span>
+            </button>
+          )}
         </div>
 
         <div className="bg-cream rounded-2xl p-4 shadow-sm flex flex-col gap-3">

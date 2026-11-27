@@ -103,7 +103,13 @@ export function DashboardNav() {
                 {l.badge && count != null && count > 0 && (
                   <span
                     aria-label={`${count} need attention`}
-                    className="min-w-[1.25rem] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center"
+                    role="link"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      router.push('/dashboard/feedback?status=open')
+                    }}
+                    className="cursor-pointer hover:bg-red-700 transition min-w-[1.25rem] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center"
                   >
                     {count > 99 ? '99+' : count}
                   </span>

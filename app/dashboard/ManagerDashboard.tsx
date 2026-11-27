@@ -92,13 +92,34 @@ type Stats = {
 
 type StaffMember = { id: string; name: string; role: 'manager' | 'waiter'; branch: string | null }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
-  return (
-    <div className="bg-cream rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
-      <div className="text-orange">{icon}</div>
+function StatCard({
+  icon, label, value, href, onClick,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | number
+  href?: string
+  onClick?: () => void
+}) {
+  const base = 'bg-cream rounded-2xl p-4 flex flex-col gap-2 shadow-sm text-left'
+  const inner = (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="text-orange">{icon}</div>
+        {(href || onClick) && (
+          <span aria-hidden className="text-brown-light opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition duration-200 motion-reduce:transition-none">→</span>
+        )}
+      </div>
       <p className="text-2xl font-heading text-brown">{value}</p>
       <p className="text-xs text-brown-light font-body">{label}</p>
-    </div>
+    </>
+  )
+  if (!href && !onClick) return <div className={base}>{inner}</div>
+  const cls = base + ' group cursor-pointer transition duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100'
+  return href ? (
+    <a href={href} className={cls}>{inner}</a>
+  ) : (
+    <button type="button" onClick={onClick} className={cls}>{inner}</button>
   )
 }
 
@@ -134,6 +155,24 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
   const [tab, setTab] = useState('overview')
   const [restored, setRestored] = useState(false)
   const [printAll, setPrintAll] = useState(false)
+
+  function goToTab(t: string) {
+    setTab(t)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function feedbackLink(opts: { cat?: string; group?: string } = {}) {
+    const p = new URLSearchParams()
+    if (branchFilter !== 'all') p.set('branch', branchFilter)
+    if (outletFilter !== 'all') p.set('outlet', outletFilter)
+    const g = opts.group ?? groupFilter
+    if (g && g !== 'all') p.set('group', g)
+    if (startDate) p.set('from', startDate)
+    if (endDate) p.set('to', endDate)
+    if (opts.cat) p.set('cat', opts.cat)
+    const q = p.toString()
+    return '/dashboard/feedback' + (q ? '?' + q : '')
+  }
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
@@ -971,19 +1010,21 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                 </button>
               )}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <StatCard icon={<MessageSquare size={20} />} label="Total Feedback" value={stats.totalCount} />
-              <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} />
+              <StatCard icon={<MessageSquare size={20} />} label="Total Feedback" value={stats.totalCount} href={feedbackLink()} />
+              <StatCard icon={<Star size={20} />} label="Overall Avg" value={stats.avgOverall || '—'} onClick={() => goToTab('trends')} />
               <StatCard
                 icon={<ThumbsUp size={20} />}
                 label={`NPS (${stats.nps.responses} resp.)`}
                 value={stats.nps.score ?? '—'}
+                onClick={() => goToTab('trends')}
               />
               <StatCard
                 icon={<Smile size={20} />}
                 label={`CSAT (${stats.csat.totalRatings} ratings)`}
                 value={stats.csat.percent != null ? `${stats.csat.percent}%` : '—'}
+                onClick={() => goToTab('trends')}
               />
-              <StatCard icon={<Users2 size={20} />} label="Repeat Guests" value={stats.repeatGuestCount} />
+              <StatCard icon={<Users2 size={20} />} label="Repeat Guests" value={stats.repeatGuestCount} onClick={() => goToTab('people')} />
             </div>
 
             <div className="bg-brown rounded-2xl p-5 md:p-6 shadow-sm text-cream">
@@ -1002,12 +1043,17 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                   <p className="text-xs uppercase tracking-wide text-beige-light/80 font-body mb-2">By Branch</p>
                   <div className="flex flex-col gap-1">
                     {stats.grandAverageByBranch.map((b) => (
-                      <div key={b.branch} className="flex justify-between text-sm font-body">
+                      <button
+                        type="button"
+                        key={b.branch}
+                        title="Filter the dashboard to this one"
+                        onClick={() => setBranchFilter(b.branch as typeof branchFilter)}
+                        className="flex justify-between w-full text-left text-sm font-body rounded px-1 -mx-1 hover:bg-cream/10 active:scale-[0.99] transition">
                         <span>{BRANCH_NAMES[b.branch] || b.branch}</span>
                         <span className="font-semibold">
                           {b.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({b.count})</span>
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1018,12 +1064,17 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                       <span className="text-sm font-body text-beige-light/70">No outlet data yet.</span>
                     )}
                     {stats.grandAverageByOutlet.map((o) => (
-                      <div key={o.outlet} className="flex justify-between text-sm font-body">
+                      <button
+                        type="button"
+                        key={o.outlet}
+                        title="Filter the dashboard to this one"
+                        onClick={() => setOutletFilter(o.outlet as typeof outletFilter)}
+                        className="flex justify-between w-full text-left text-sm font-body rounded px-1 -mx-1 hover:bg-cream/10 active:scale-[0.99] transition">
                         <span>{OUTLET_NAMES[o.outlet] || o.outlet}</span>
                         <span className="font-semibold">
                           {o.avg || '-'} <span className="text-xs font-normal text-beige-light/70">({o.count})</span>
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1031,14 +1082,15 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard icon={<Star size={18} />} label="Hostess Reception" value={stats.avgHostess || '—'} />
+              <StatCard icon={<Star size={18} />} label="Hostess Reception" value={stats.avgHostess || '—'} href={feedbackLink({ cat: 'hostess' })} />
               <StatCard icon={<Star size={18} />} label="Beverage Quality" value={stats.avgBeverage || '—'} />
-              <StatCard icon={<Star size={18} />} label="Wifi Connectivity" value={stats.avgWifi || '—'} />
+              <StatCard icon={<Star size={18} />} label="Wifi Connectivity" value={stats.avgWifi || '—'} href={feedbackLink({ cat: 'wifi' })} />
               <StatCard icon={<Star size={18} />} label="Menu Variety" value={stats.avgMenuVariety || '—'} />
               <StatCard
                 icon={<Star size={18} />}
                 label="Ambiance & Cleanliness"
                 value={stats.avgAmbianceCleanliness || '—'}
+                href={feedbackLink({ cat: 'ambiance' })}
               />
             </div>
 
@@ -1309,7 +1361,9 @@ export function ManagerDashboard({ managerName }: { managerName: string }) {
                     <tbody>
                       {stats.groupSummary.map((g) => (
                         <tr key={g.name} className="border-t border-beige">
-                          <td className="py-2 font-semibold">{g.name}</td>
+                          <td className="py-2 font-semibold">
+                            <a href={feedbackLink({ group: g.name })} className="underline decoration-dotted hover:text-orange transition">{g.name}</a>
+                          </td>
                           <td className="py-2">{g.responses}</td>
                           <td className="py-2">{g.avgOverall}★</td>
                           <td className="py-2">{g.nps ?? "-"}</td>
